@@ -37,6 +37,26 @@ from fuelweb_test import logwrap
 from fuelweb_test import logger
 
 
+class BMEnvModel(object):
+    def __init__(self):
+        self.fuel_web = FuelWebClient('172.18.201.16', self)
+
+    def get_ssh_to_remote(self, ip):
+        return SSHClient(ip,
+                         username='root',
+                         password='r00tme')
+
+    @logwrap
+    def get_ebtables_by_nodes(self, cluster_id, nodes):
+        devs = []
+        for node in nodes:
+            ifaces_info = node.meta['interfaces']
+            devs.extend([iface_info['name'] for iface_info in ifaces_info])
+
+        return Ebtables(devs,
+                        self.fuel_web.client.get_cluster_vlans(cluster_id))
+
+
 class EnvironmentModel(object):
     hostname = 'nailgun'
     domain = 'test.domain.local'

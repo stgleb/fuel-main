@@ -11,14 +11,24 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+import mock
 
 from proboscis import SkipTest
 from proboscis import test
+from certification_script import cert_script, fuel_rest_api
+from fuelweb_test import settings
 
 from fuelweb_test.helpers.decorators import log_snapshot_on_error
 from fuelweb_test.models.environment import EnvironmentModel
+from fuelweb_test.models.environment import BMEnvModel
+from fuelweb_test.models.fuel_web_client import FuelWebClient
 from fuelweb_test.settings import OPENSTACK_RELEASE
 from fuelweb_test.settings import OPENSTACK_RELEASE_REDHAT
+from fuelweb_test import logger
+
+
+fuel_rest_api.set_logger(logger)
+cert_script.set_logger(logger)
 
 
 class TestBasic(object):
@@ -28,8 +38,13 @@ class TestBasic(object):
 
     """
     def __init__(self):
-        self.env = EnvironmentModel()
+        if settings.CREATE_ENV:
+            self.env = EnvironmentModel()
+        else:
+            self.env = BMEnvModel()
         self.fuel_web = self.env.fuel_web
+        self.conn = fuel_rest_api.Urllib2HTTP(settings.NAILGUN_URL)
+        self.templates = cert_script.load_all_clusters(settings.CLUSTER_TEMPLATES_DIR)
 
     def check_run(self, snapshot_name):
         """Checks if run of current test is required.
@@ -53,6 +68,8 @@ class SetupEnvironment(TestBasic):
         Snapshot: empty
 
         """
+        if not settings.CREATE_ENV:
+            return
         self.check_run("empty")
         self.env.setup_environment()
         self.env.make_snapshot("empty", is_make=True)
@@ -68,6 +85,8 @@ class SetupEnvironment(TestBasic):
         Snapshot: ready
 
         """
+        if not settings.CREATE_ENV:
+            return
         self.check_run("ready")
         self.env.revert_snapshot("empty")
 
@@ -98,6 +117,8 @@ class SetupEnvironment(TestBasic):
         Snapshot: ready_with_1_slaves
 
         """
+        if not settings.CREATE_ENV:
+            return
         self.check_run("ready_with_1_slaves")
         self.env.revert_snapshot("ready")
         self.env.bootstrap_nodes(self.env.nodes().slaves[:1])
@@ -116,6 +137,8 @@ class SetupEnvironment(TestBasic):
         Snapshot: ready_with_3_slaves
 
         """
+        if not settings.CREATE_ENV:
+            return
         self.check_run("ready_with_3_slaves")
         self.env.revert_snapshot("ready")
         self.env.bootstrap_nodes(self.env.nodes().slaves[:3])

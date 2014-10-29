@@ -54,6 +54,8 @@ def log_snapshot_on_error(func):
         except SkipTest:
             raise SkipTest()
         except Exception:
+            if not settings.CREATE_ENV:
+                raise
             if args and 'snapshot' in args[0].__dict__:
                 name = 'error_%s' % args[0].snapshot
                 description = "Failed in method '%s'." % args[0].snapshot

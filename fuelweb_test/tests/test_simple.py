@@ -28,14 +28,15 @@ from fuelweb_test.settings import DEPLOYMENT_MODE_SIMPLE
 from fuelweb_test.settings import NODE_VOLUME_SIZE
 from fuelweb_test.tests.base_test_case import SetupEnvironment
 from fuelweb_test.tests.base_test_case import TestBasic
-from fuelweb_test import logger
+from fuelweb_test import logger, settings
+
+from certification_script import cert_script
 
 
 @test(groups=["thread_2"])
 class OneNodeDeploy(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_release],
-          groups=["deploy_one_node"])
-    @log_snapshot_on_error
+          groups=["deploy_one_node", "baremetal1"])
     def deploy_one_node(self):
         """Deploy cluster with controller node only
 
@@ -47,31 +48,38 @@ class OneNodeDeploy(TestBasic):
             services, there are no errors in logs
 
         """
-        self.env.revert_snapshot("ready")
-        self.fuel_web.client.get_root()
-        self.env.bootstrap_nodes(self.env.nodes().slaves[:1])
+        if settings.CREATE_ENV:
+            self.env.revert_snapshot("ready")
+            self.fuel_web.client.get_root()
+            self.env.bootstrap_nodes(self.env.nodes().slaves[:1])
+        else:
+            self.fuel_web.client.get_root()
+        cluster_templ = self.templates.get('simple1')
+        if not cluster_templ.get('release'):
+            cluster_templ['release'] = 1
 
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__
-        )
-        logger.info('cluster is %s' % str(cluster_id))
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {'slave-01': ['controller']}
-        )
-        self.fuel_web.deploy_cluster_wait(cluster_id)
-        self.fuel_web.assert_cluster_ready(
-            'slave-01', smiles_count=4, networks_count=1, timeout=300)
-        self.fuel_web.run_single_ostf_test(
-            cluster_id=cluster_id, test_sets=['sanity'],
-            test_name=('fuel_health.tests.sanity.test_sanity_identity'
-                       '.SanityIdentityTest.test_list_users'))
+        cluster_obj = cert_script.fuel_rest_api.reflect_cluster(
+            cert_script.fuel_rest_api.Urllib2HTTP(settings.NAILGUN_URL), 114)
+        if cluster_obj:
+        #with cert_script.make_cluster(self.conn, cluster_templ) as cluster_obj:
+            node = cluster_obj.nodes.controller[0]
+            for iface in node.meta['interfaces']:
+                ip = iface['ip']
+                if ip.startswith('172'):
+                    break
+            self.fuel_web.assert_cluster_ready(node.name,
+                                               ip=ip, smiles_count=4,
+                                               networks_count=1, timeout=300)
+            self.fuel_web.run_single_ostf_test(
+                cluster_id=cluster_obj.id, test_sets=['sanity'],
+                test_name=('fuel_health.tests.sanity.test_sanity_identity'
+                           '.SanityIdentityTest.test_list_users'))
 
 
 @test(groups=["thread_2"])
 class SimpleFlat(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
-          groups=["smoke", "deploy_simple_flat", "simple_nova_flat"])
+          groups=["smoke", "deploy_simple_flat", "simple_nova_flat", "baremetal"])
     @log_snapshot_on_error
     def deploy_simple_flat(self):
         """Deploy cluster in simple mode with flat nova-network
@@ -90,39 +98,37 @@ class SimpleFlat(TestBasic):
         Snapshot: deploy_simple_flat
 
         """
-        self.env.revert_snapshot("ready_with_3_slaves")
+        if settings.CREATE_ENV:
+            self.env.revert_snapshot("ready_with_3_slaves")
 
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=DEPLOYMENT_MODE_SIMPLE,
-            settings={
-                'tenant': 'novaSimpleFlat',
-                'user': 'novaSimpleFlat',
-                'password': 'novaSimpleFlat'
-            }
-        )
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-01': ['controller'],
-                'slave-02': ['compute']
-            }
-        )
-        self.fuel_web.update_internal_network(cluster_id, '10.1.0.0/24')
-        self.fuel_web.deploy_cluster_wait(cluster_id)
-        self.fuel_web.assert_cluster_ready(
-            'slave-01', smiles_count=6, networks_count=1, timeout=300)
-        self.fuel_web.check_fixed_network_cidr(
-            cluster_id, self.env.get_ssh_to_remote_by_name('slave-01'))
+        cluster_templ = self.templates.get('flat')
+        if not cluster_templ.get('release'):
+            cluster_templ['release'] = 1
+        with cert_script.make_cluster(self.conn, cluster_templ) as cluster_obj:
+            node = cluster_obj.nodes.controller[0]
+            import ipdb;ipdb.set_trace()
+            for iface in node.meta['interfaces']:
+                ip = iface['ip']
+                if ip.startswith('172'):
+                    break
+            self.fuel_web.assert_cluster_ready(node.name, ip=ip,
+                                               smiles_count=6,
+                                               networks_count=1, timeout=300)
+            self.fuel_web.check_fixed_network_cidr(
+                cluster_obj.id, self.env.get_ssh_to_remote(ip))
 
-        self.fuel_web.verify_network(cluster_id)
+            self.fuel_web.verify_network(cluster_obj.id)
 
-        self.env.verify_network_configuration("slave-01")
+            checkers.verify_network_configuration(
+                node=node,
+                remote=self.env.get_ssh_to_remote(ip)
+            )
 
-        self.fuel_web.run_ostf(
-            cluster_id=cluster_id)
+            self.fuel_web.run_ostf(
+                cluster_id=cluster_obj.id)
 
-        self.env.make_snapshot("deploy_simple_flat", is_make=True)
+        if settings.CREATE_ENV:
+            self.env.make_snapshot("deploy_simple_flat", is_make=True)
 
     @test(depends_on=[deploy_simple_flat],
           groups=["simple_flat_create_instance"])
@@ -159,7 +165,7 @@ class SimpleFlat(TestBasic):
         assert_true(res == 'Hello World', 'file content is {0}'.format(res))
 
     @test(depends_on=[deploy_simple_flat],
-          groups=["simple_flat_node_deletion"])
+          groups=["simple_flat_node_deletion", "baremetal"])
     @log_snapshot_on_error
     def simple_flat_node_deletion(self):
         """Remove controller from cluster in simple mode with flat nova-network
@@ -171,11 +177,15 @@ class SimpleFlat(TestBasic):
             4. Verify node returns to unallocated pull
 
         """
-        self.env.revert_snapshot("deploy_simple_flat")
+        if settings.CREATE_ENV:
+            self.env.revert_snapshot("deploy_simple_flat")
 
         cluster_id = self.fuel_web.get_last_created_cluster()
+        cluster_o = cert_script.fuel_rest_api.reflect_cluster(
+            cert_script.fuel_rest_api.Urllib2HTTP(settings.NAILGUN_URL), cluster_id)
+        compute = cluster_o.nodes.compute[0]
         nailgun_nodes = self.fuel_web.update_nodes(
-            cluster_id, {'slave-02': ['compute']}, False, True)
+            cluster_id, {compute: ['compute']}, False, True, )
         task = self.fuel_web.deploy_cluster(cluster_id)
         self.fuel_web.assert_task_success(task)
         nodes = filter(lambda x: x["pending_deletion"] is True, nailgun_nodes)
@@ -232,7 +242,7 @@ class SimpleFlat(TestBasic):
             ebtables.restore_first_vlan()
 
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
-          groups=["simple_flat_add_compute"])
+          groups=["simple_flat_add_compute", "baremetal1"])
     @log_snapshot_on_error
     def simple_flat_add_compute(self):
         """Add compute node to cluster in simple mode
@@ -254,44 +264,54 @@ class SimpleFlat(TestBasic):
         Snapshot: simple_flat_add_compute
 
         """
-        self.env.revert_snapshot("ready_with_3_slaves")
+        if settings.CREATE_ENV:
+            self.env.revert_snapshot("ready_with_3_slaves")
 
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=DEPLOYMENT_MODE_SIMPLE,
-            settings={
-                'tenant': 'flatAddCompute',
-                'user': 'flatAddCompute',
-                'password': 'flatAddCompute'
-            }
-        )
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-01': ['controller'],
-                'slave-02': ['compute']
-            }
-        )
-        self.fuel_web.deploy_cluster_wait(cluster_id)
-        self.fuel_web.assert_cluster_ready(
-            'slave-01', smiles_count=6, networks_count=1, timeout=300)
+        cluster_templ = self.templates.get('flat')
+        if not cluster_templ.get('release'):
+            cluster_templ['release'] = 1
+        cluster_templ['deployment_mode'] = "multinode"
 
-        self.fuel_web.update_nodes(
-            cluster_id, {'slave-03': ['compute']}, True, False)
-        self.fuel_web.deploy_cluster_wait(cluster_id)
+        with cert_script.make_cluster(self.conn, cluster_templ) as cluster_obj:
+            node = cluster_obj.nodes.controller[0]
+            for iface in node.meta['interfaces']:
+                ip = iface['ip']
+                if ip.startswith('172'):
+                    break
+            self.fuel_web.assert_cluster_ready(node.name, ip=ip,
+                                               smiles_count=6,
+                                               networks_count=1, timeout=300)
+            self.fuel_web.check_fixed_network_cidr(
+                cluster_obj.id, self.env.get_ssh_to_remote(ip))
 
-        assert_equal(
-            3, len(self.fuel_web.client.list_cluster_nodes(cluster_id)))
+            self.fuel_web.verify_network(cluster_obj.id)
 
-        self.fuel_web.assert_cluster_ready(
-            "slave-01", smiles_count=8, networks_count=1, timeout=300)
-        self.env.verify_node_service_list("slave-02", 8)
-        self.env.verify_node_service_list("slave-03", 8)
+            checkers.verify_network_configuration(
+                node=node,
+                remote=self.env.get_ssh_to_remote(ip)
+            )
 
-        self.fuel_web.run_ostf(
-            cluster_id=cluster_id)
+            self.fuel_web.run_ostf(
+                cluster_id=cluster_obj.id)
 
-        self.env.make_snapshot("simple_flat_add_compute")
+        # need to get unallocated nodes and add to cluster
+
+        #new_node = None
+        #if new_node:
+        #    self.fuel_web.deploy_cluster_wait(cluster_id)
+        #
+        #    assert_equal(
+        #        3, len(self.fuel_web.client.list_cluster_nodes(cluster_id)))
+        #
+        #    self.fuel_web.assert_cluster_ready(
+        #        "slave-01", smiles_count=8, networks_count=1, timeout=300)
+        #    self.env.verify_node_service_list("slave-02", 8)
+        #    self.env.verify_node_service_list("slave-03", 8)
+        #
+        #    self.fuel_web.run_ostf(
+        #        cluster_id=cluster_id)
+        #
+        #    self.env.make_snapshot("simple_flat_add_compute")
 
 
 @test(groups=["thread_2"])

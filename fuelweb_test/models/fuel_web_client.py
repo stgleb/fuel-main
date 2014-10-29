@@ -104,9 +104,12 @@ class FuelWebClient(object):
 
     @logwrap
     def assert_cluster_ready(self, node_name, smiles_count,
-                             networks_count=1, timeout=300):
+                             networks_count=1, timeout=300, ip=None):
         logger.info('Assert cluster services are UP')
-        remote = self.environment.get_ssh_to_remote_by_name(node_name)
+        if not ip:
+            remote = self.environment.get_ssh_to_remote_by_name(node_name)
+        else:
+            remote = self.environment.get_ssh_to_remote(ip)
         _wait(
             lambda: self.get_cluster_status(
                 remote,
@@ -619,14 +622,15 @@ class FuelWebClient(object):
                      pending_addition=True, pending_deletion=False):
         # update nodes in cluster
         nodes_data = []
-        for node_name in nodes_dict:
-            devops_node = self.environment.get_virtual_environment().\
-                node_by_name(node_name)
+        for node in nodes_dict:
+            if isinstance(node, str):
+                devops_node = self.environment.get_virtual_environment().\
+                    node_by_name(node)
 
-            wait(lambda:
-                 self.get_nailgun_node_by_devops_node(devops_node)['online'],
-                 timeout=60 * 2)
-            node = self.get_nailgun_node_by_devops_node(devops_node)
+                wait(lambda:
+                     self.get_nailgun_node_by_devops_node(
+                         devops_node)['online'], timeout=60 * 2)
+                node = self.get_nailgun_node_by_devops_node(devops_node)
             assert_true(node['online'],
                         'Node {} is online'.format(node['mac']))
 
@@ -635,10 +639,10 @@ class FuelWebClient(object):
                 'id': node['id'],
                 'pending_addition': pending_addition,
                 'pending_deletion': pending_deletion,
-                'pending_roles': nodes_dict[node_name],
+                'pending_roles': nodes_dict[node],
                 'name': '{}_{}'.format(
-                    node_name,
-                    "_".join(nodes_dict[node_name])
+                    node['name'],
+                    "_".join(nodes_dict[node])
                 )
             }
             nodes_data.append(node_data)
