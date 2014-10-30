@@ -40,6 +40,7 @@ from fuelweb_test import logger
 class BMEnvModel(object):
     def __init__(self):
         self.fuel_web = FuelWebClient('172.18.201.16', self)
+        self.admin_node_ip = settings.ADMIN_NODE_IP
 
     def get_ssh_to_remote(self, ip):
         return SSHClient(ip,
@@ -55,6 +56,25 @@ class BMEnvModel(object):
 
         return Ebtables(devs,
                         self.fuel_web.client.get_cluster_vlans(cluster_id))
+
+    def get_admin_node_ip(self):
+        return self.admin_node_ip
+
+    def get_admin_remote(self, remote=None):
+        return self.get_ssh_to_remote(self.admin_node_ip)
+
+    def get_fuel_settings(self, remote=None):
+        if not remote:
+            remote = self.get_admin_remote()
+        cmd = 'cat {cfg_file}'.format(cfg_file=settings.FUEL_SETTINGS_YAML)
+        result = remote.execute(cmd)
+        if result['exit_code'] == 0:
+            fuel_settings = yaml.load(''.join(result['stdout']))
+        else:
+            raise Exception('Can\'t output {cfg_file} file: {error}'.
+                            format(cfg_file=settings.FUEL_SETTINGS_YAML,
+                                   error=result['stderr']))
+        return fuel_settings
 
 
 class EnvironmentModel(object):

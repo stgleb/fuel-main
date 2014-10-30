@@ -53,25 +53,20 @@ class OneNodeDeploy(TestBasic):
             self.fuel_web.client.get_root()
             self.env.bootstrap_nodes(self.env.nodes().slaves[:1])
         else:
-            self.fuel_web.client.get_root()
+            pass
+            #self.fuel_web.client.get_root()
         cluster_templ = self.templates.get('simple1')
         if not cluster_templ.get('release'):
             cluster_templ['release'] = 1
 
-        cluster_obj = cert_script.fuel_rest_api.reflect_cluster(
-            cert_script.fuel_rest_api.Urllib2HTTP(settings.NAILGUN_URL), 114)
-        if cluster_obj:
-        #with cert_script.make_cluster(self.conn, cluster_templ) as cluster_obj:
-            node = cluster_obj.nodes.controller[0]
-            for iface in node.meta['interfaces']:
-                ip = iface['ip']
-                if ip.startswith('172'):
-                    break
+        with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
+            node = cluster.nodes.controller[0]
             self.fuel_web.assert_cluster_ready(node.name,
-                                               ip=ip, smiles_count=4,
+                                               ip=node.get_ip(),
+                                               smiles_count=4,
                                                networks_count=1, timeout=300)
             self.fuel_web.run_single_ostf_test(
-                cluster_id=cluster_obj.id, test_sets=['sanity'],
+                cluster_id=cluster.id, test_sets=['sanity'],
                 test_name=('fuel_health.tests.sanity.test_sanity_identity'
                            '.SanityIdentityTest.test_list_users'))
 
@@ -79,7 +74,8 @@ class OneNodeDeploy(TestBasic):
 @test(groups=["thread_2"])
 class SimpleFlat(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
-          groups=["smoke", "deploy_simple_flat", "simple_nova_flat", "baremetal"])
+          groups=["smoke", "deploy_simple_flat", "simple_nova_flat",
+                  "baremetal2"])
     @log_snapshot_on_error
     def deploy_simple_flat(self):
         """Deploy cluster in simple mode with flat nova-network
@@ -104,20 +100,16 @@ class SimpleFlat(TestBasic):
         cluster_templ = self.templates.get('flat')
         if not cluster_templ.get('release'):
             cluster_templ['release'] = 1
-        with cert_script.make_cluster(self.conn, cluster_templ) as cluster_obj:
-            node = cluster_obj.nodes.controller[0]
-            import ipdb;ipdb.set_trace()
-            for iface in node.meta['interfaces']:
-                ip = iface['ip']
-                if ip.startswith('172'):
-                    break
+        with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
+            node = cluster.nodes.controller[0]
+            ip = node.get_ip()
             self.fuel_web.assert_cluster_ready(node.name, ip=ip,
                                                smiles_count=6,
                                                networks_count=1, timeout=300)
             self.fuel_web.check_fixed_network_cidr(
-                cluster_obj.id, self.env.get_ssh_to_remote(ip))
+                cluster.id, self.env.get_ssh_to_remote(ip))
 
-            self.fuel_web.verify_network(cluster_obj.id)
+            self.fuel_web.verify_network(cluster.id)
 
             checkers.verify_network_configuration(
                 node=node,
@@ -125,7 +117,7 @@ class SimpleFlat(TestBasic):
             )
 
             self.fuel_web.run_ostf(
-                cluster_id=cluster_obj.id)
+                cluster_id=cluster.id)
 
         if settings.CREATE_ENV:
             self.env.make_snapshot("deploy_simple_flat", is_make=True)
@@ -165,7 +157,7 @@ class SimpleFlat(TestBasic):
         assert_true(res == 'Hello World', 'file content is {0}'.format(res))
 
     @test(depends_on=[deploy_simple_flat],
-          groups=["simple_flat_node_deletion", "baremetal"])
+          groups=["simple_flat_node_deletion", "baremetal2"])
     @log_snapshot_on_error
     def simple_flat_node_deletion(self):
         """Remove controller from cluster in simple mode with flat nova-network
@@ -181,9 +173,10 @@ class SimpleFlat(TestBasic):
             self.env.revert_snapshot("deploy_simple_flat")
 
         cluster_id = self.fuel_web.get_last_created_cluster()
-        cluster_o = cert_script.fuel_rest_api.reflect_cluster(
-            cert_script.fuel_rest_api.Urllib2HTTP(settings.NAILGUN_URL), cluster_id)
-        compute = cluster_o.nodes.compute[0]
+        cluster = cert_script.fuel_rest_api.reflect_cluster(
+            cert_script.fuel_rest_api.Urllib2HTTP(settings.NAILGUN_URL),
+            cluster_id)
+        compute = cluster.nodes.compute[0]
         nailgun_nodes = self.fuel_web.update_nodes(
             cluster_id, {compute: ['compute']}, False, True, )
         task = self.fuel_web.deploy_cluster(cluster_id)
@@ -242,7 +235,7 @@ class SimpleFlat(TestBasic):
             ebtables.restore_first_vlan()
 
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
-          groups=["simple_flat_add_compute", "baremetal1"])
+          groups=["simple_flat_add_compute", "baremetal"])
     @log_snapshot_on_error
     def simple_flat_add_compute(self):
         """Add compute node to cluster in simple mode

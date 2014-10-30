@@ -259,3 +259,4 @@ UPDATE_TIMEOUT = os.environ.get('UPDATE_TIMEOUT', 3600)
 CREATE_ENV = os.environ.get('CREATE_ENV', 'false') == 'true'
 NAILGUN_URL = 'http://172.18.201.16:8000'
 CLUSTER_TEMPLATES_DIR = '/etc/fuel/tests/clusters'
+ADMIN_NODE_IP = '172.18.201.16'
