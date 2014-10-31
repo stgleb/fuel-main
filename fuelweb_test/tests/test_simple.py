@@ -30,6 +30,8 @@ from fuelweb_test.tests.base_test_case import SetupEnvironment
 from fuelweb_test.tests.base_test_case import TestBasic
 from fuelweb_test import logger, settings
 
+from fuelweb_test.tests.base_test_case import revert_snapshot
+from fuelweb_test.tests.base_test_case import bootstrap_nodes
 from certification_script import cert_script
 
 
@@ -37,6 +39,8 @@ from certification_script import cert_script
 class OneNodeDeploy(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_release],
           groups=["deploy_one_node", "baremetal1"])
+    @revert_snapshot("ready")
+    @bootstrap_nodes("1")
     def deploy_one_node(self):
         """Deploy cluster with controller node only
 
@@ -48,13 +52,6 @@ class OneNodeDeploy(TestBasic):
             services, there are no errors in logs
 
         """
-        if settings.CREATE_ENV:
-            self.env.revert_snapshot("ready")
-            self.fuel_web.client.get_root()
-            self.env.bootstrap_nodes(self.env.nodes().slaves[:1])
-        else:
-            pass
-            #self.fuel_web.client.get_root()
         cluster_templ = self.templates.get('simple1')
         if not cluster_templ.get('release'):
             cluster_templ['release'] = 1
@@ -77,6 +74,7 @@ class SimpleFlat(TestBasic):
           groups=["smoke", "deploy_simple_flat", "simple_nova_flat",
                   "baremetal2"])
     @log_snapshot_on_error
+    @revert_snapshot("ready_with_3_slaves")
     def deploy_simple_flat(self):
         """Deploy cluster in simple mode with flat nova-network
 
@@ -100,6 +98,7 @@ class SimpleFlat(TestBasic):
         cluster_templ = self.templates.get('flat')
         if not cluster_templ.get('release'):
             cluster_templ['release'] = 1
+
         with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
             node = cluster.nodes.controller[0]
             ip = node.get_ip()

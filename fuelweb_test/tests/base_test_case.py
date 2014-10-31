@@ -31,6 +31,26 @@ fuel_rest_api.set_logger(logger)
 cert_script.set_logger(logger)
 
 
+def revert_snapshot(f, name="ready"):
+    def decorator(f):
+        def wrapper(self, *args, **kwargs):
+            if settings.CREATE_ENV:
+                self.env.revert_snapshot(name)
+            return f(self, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
+def bootstrap_nodes(f, num_nodes=1):
+    def decorator(f):
+        def wrapper(self, *args, **kwargs):
+            if settings.CREATE_ENV:
+                self.env.bootstrap_nodes(self.env.nodes().slaves[:num_nodes])
+            return f(self, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
 class TestBasic(object):
     """Basic test case class for all system tests.
 
