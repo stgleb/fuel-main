@@ -12,6 +12,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+
 import time
 import yaml
 
@@ -41,23 +42,11 @@ class BMEnvModel(object):
     def __init__(self):
         self.fuel_web = FuelWebClient('172.18.201.16', self)
         self.admin_node_ip = settings.ADMIN_NODE_IP
-        self._keys = None
 
-    @logwrap
-    def get_private_keys(self, force=False):
-        if force or self._keys is None:
-            self._keys = []
-            for key_string in ['/root/.ssh/id_rsa',
-                               '/root/.ssh/bootstrap.rsa']:
-                with self.get_admin_remote().open(key_string) as f:
-                    self._keys.append(RSAKey.from_private_key(f))
-        return self._keys
-
-    def get_ssh_to_remote(self, ip):
+    def get_ssh_to_remote(self, ip, password="r00tme"):
         return SSHClient(ip,
                          username='root',
-                         password='r00tme',
-                         private_keys=self.get_private_keys())
+                         password=password)
 
     @logwrap
     def get_ebtables_by_nodes(self, cluster_id, nodes):
@@ -72,10 +61,10 @@ class BMEnvModel(object):
     def get_admin_node_ip(self):
         return self.admin_node_ip
 
-    def get_admin_remote(self):
-        return SSHClient(self.admin_node_ip,
-                         username='root',
-                         password='test37')
+    def get_admin_remote(self, remote=None):
+        return self.get_ssh_to_remote(self.admin_node_ip,
+            password=settings.ADMIN_NODE_PASS)
+
 
     def get_fuel_settings(self, remote=None):
         if not remote:
