@@ -38,15 +38,40 @@ from fuelweb_test import logwrap
 from fuelweb_test import logger
 
 
-class BMEnvModel(object):
+class SSH(object):
+
     def __init__(self):
+        self._keys = None
+
+    def get_admin_remote(self):
+        return self.get_ssh_to_remote(self.admin_node_ip, use_pk=False)
+
+    def get_ssh_to_remote(self, ip, username='root',
+                          password=settings.ADMIN_NODE_PASS,
+                          use_pk=True):
+        pk = self.get_private_keys() if use_pk else None
+        return SSHClient(ip,
+                         username=username,
+                         password=password,
+                         private_keys=pk)
+
+    @logwrap
+    def get_private_keys(self, force=False):
+        admin_remote = self.get_admin_remote()
+        if force or self._keys is None:
+            self._keys = []
+            for key_string in ['/root/.ssh/id_rsa',
+                               '/root/.ssh/bootstrap.rsa']:
+                with admin_remote.open(key_string) as f:
+                    self._keys.append(RSAKey.from_private_key(f))
+        return self._keys
+
+
+class BMEnvModel(SSH):
+    def __init__(self):
+        super(BMEnvModel, self).__init__()
         self.fuel_web = FuelWebClient('172.18.201.16', self)
         self.admin_node_ip = settings.ADMIN_NODE_IP
-
-    def get_ssh_to_remote(self, ip, password="r00tme"):
-        return SSHClient(ip,
-                         username='root',
-                         password=password)
 
     @logwrap
     def get_ebtables_by_nodes(self, cluster_id, nodes):
@@ -60,11 +85,6 @@ class BMEnvModel(object):
 
     def get_admin_node_ip(self):
         return self.admin_node_ip
-
-    def get_admin_remote(self, remote=None):
-        return self.get_ssh_to_remote(self.admin_node_ip,
-            password=settings.ADMIN_NODE_PASS)
-
 
     def get_fuel_settings(self, remote=None):
         if not remote:
@@ -80,7 +100,7 @@ class BMEnvModel(object):
         return fuel_settings
 
 
-class EnvironmentModel(object):
+class EnvironmentModel(SSH):
     hostname = 'nailgun'
     domain = 'test.domain.local'
     installation_timeout = 1800
@@ -90,6 +110,7 @@ class EnvironmentModel(object):
     admin_net = 'admin'
 
     def __init__(self, os_image=None):
+        super(EnvironmentModel, self).__init__()
         self._virtual_environment = None
         self._keys = None
         self.manager = Manager()
@@ -273,15 +294,6 @@ class EnvironmentModel(object):
         return node
 
     @logwrap
-    def get_admin_remote(self):
-        """SSH to admin node
-        :rtype : SSHClient
-        """
-        return self.nodes().admin.remote(self.admin_net,
-                                         login='root',
-                                         password='r00tme')
-
-    @logwrap
     def get_admin_node_ip(self):
         return str(
             self.nodes().admin.get_ip_address_by_network_name(self.admin_net))
@@ -320,23 +332,6 @@ class EnvironmentModel(object):
             " <Enter>\n"
         ) % params
         return keys
-
-    @logwrap
-    def get_private_keys(self, force=False):
-        if force or self._keys is None:
-            self._keys = []
-            for key_string in ['/root/.ssh/id_rsa',
-                               '/root/.ssh/bootstrap.rsa']:
-                with self.get_admin_remote().open(key_string) as f:
-                    self._keys.append(RSAKey.from_private_key(f))
-        return self._keys
-
-    @logwrap
-    def get_ssh_to_remote(self, ip):
-        return SSHClient(ip,
-                         username='root',
-                         password='r00tme',
-                         private_keys=self.get_private_keys())
 
     @logwrap
     def get_ssh_to_remote_by_name(self, node_name):
