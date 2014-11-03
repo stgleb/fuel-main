@@ -31,7 +31,7 @@ fuel_rest_api.set_logger(logger)
 cert_script.set_logger(logger)
 
 
-def revert_snapshot(f, name="ready"):
+def revert_snapshot(name):
     def decorator(f):
         def wrapper(self, *args, **kwargs):
             if settings.CREATE_ENV:
@@ -41,12 +41,21 @@ def revert_snapshot(f, name="ready"):
     return decorator
 
 
-def bootstrap_nodes(f, num_nodes=1):
+def bootstrap_nodes(num_nodes):
     def decorator(f):
         def wrapper(self, *args, **kwargs):
             if settings.CREATE_ENV:
                 self.env.bootstrap_nodes(self.env.nodes().slaves[:num_nodes])
             return f(self, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
+def cluster_template(name):
+    def decorator(f):
+        def wrapper(self):
+            cluster_templ = self.templates.get(name)
+            return f(self, cluster_templ)
         return wrapper
     return decorator
 
@@ -63,8 +72,15 @@ class TestBasic(object):
         else:
             self.env = BMEnvModel()
         self.fuel_web = self.env.fuel_web
-        self.conn = fuel_rest_api.Urllib2HTTP(settings.NAILGUN_URL)
-        self.templates = cert_script.load_all_clusters(settings.CLUSTER_TEMPLATES_DIR)
+        self.templates = cert_script.load_all_clusters(
+            settings.CLUSTER_TEMPLATES_DIR)
+
+    @property
+    def conn(self):
+        if settings.CREATE_ENV:
+            return fuel_rest_api.Urllib2HTTP(self.env.get_admin_node_ip())
+        else:
+            return fuel_rest_api.Urllib2HTTP(settings.NAILGUN_URL)
 
     def check_run(self, snapshot_name):
         """Checks if run of current test is required.

@@ -32,6 +32,7 @@ from fuelweb_test import logger, settings
 
 from fuelweb_test.tests.base_test_case import revert_snapshot
 from fuelweb_test.tests.base_test_case import bootstrap_nodes
+from fuelweb_test.tests.base_test_case import cluster_template
 from certification_script import cert_script
 
 
@@ -41,7 +42,8 @@ class OneNodeDeploy(TestBasic):
           groups=["deploy_one_node", "baremetal1"])
     @revert_snapshot("ready")
     @bootstrap_nodes("1")
-    def deploy_one_node(self):
+    @cluster_template("simple1")
+    def deploy_one_node(self, cluster_templ):
         """Deploy cluster with controller node only
 
         Scenario:
@@ -52,7 +54,6 @@ class OneNodeDeploy(TestBasic):
             services, there are no errors in logs
 
         """
-        cluster_templ = self.templates.get('simple1')
         if not cluster_templ.get('release'):
             cluster_templ['release'] = 1
 
@@ -72,10 +73,11 @@ class OneNodeDeploy(TestBasic):
 class SimpleFlat(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
           groups=["smoke", "deploy_simple_flat", "simple_nova_flat",
-                  "baremetal2"])
+                  "baremetal"])
     @log_snapshot_on_error
     @revert_snapshot("ready_with_3_slaves")
-    def deploy_simple_flat(self):
+    @cluster_template("flat")
+    def deploy_simple_flat(self, cluster_templ):
         """Deploy cluster in simple mode with flat nova-network
 
         Scenario:
@@ -92,10 +94,6 @@ class SimpleFlat(TestBasic):
         Snapshot: deploy_simple_flat
 
         """
-        if settings.CREATE_ENV:
-            self.env.revert_snapshot("ready_with_3_slaves")
-
-        cluster_templ = self.templates.get('flat')
         if not cluster_templ.get('release'):
             cluster_templ['release'] = 1
 
@@ -155,7 +153,7 @@ class SimpleFlat(TestBasic):
             floating_ip.ip, "sudo cat /root/test.txt")
         assert_true(res == 'Hello World', 'file content is {0}'.format(res))
 
-    @test(depends_on=[deploy_simple_flat],
+    @test(depends_on=[],
           groups=["simple_flat_node_deletion", "baremetal2"])
     @log_snapshot_on_error
     def simple_flat_node_deletion(self):
