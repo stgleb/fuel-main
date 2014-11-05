@@ -32,6 +32,7 @@ from fuelweb_test import logger, settings
 
 from fuelweb_test.tests.base_test_case import revert_snapshot
 from fuelweb_test.tests.base_test_case import bootstrap_nodes
+from fuelweb_test.tests.base_test_case import cluster_template
 from certification_script import cert_script
 
 
@@ -41,7 +42,8 @@ class OneNodeDeploy(TestBasic):
           groups=["deploy_one_node", "baremetal1"])
     @revert_snapshot("ready")
     @bootstrap_nodes("1")
-    def deploy_one_node(self):
+    @cluster_template("simple1")
+    def deploy_one_node(self, cluster_templ):
         """Deploy cluster with controller node only
 
         Scenario:
@@ -52,7 +54,6 @@ class OneNodeDeploy(TestBasic):
             services, there are no errors in logs
 
         """
-        cluster_templ = self.templates.get('simple1')
         if not cluster_templ.get('release'):
             cluster_templ['release'] = 1
 
@@ -72,10 +73,11 @@ class OneNodeDeploy(TestBasic):
 class SimpleFlat(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
           groups=["smoke", "deploy_simple_flat", "simple_nova_flat",
-                  "baremetal2"])
+                  "baremetal"])
     @log_snapshot_on_error
     @revert_snapshot("ready_with_3_slaves")
-    def deploy_simple_flat(self):
+    @cluster_template("flat")
+    def deploy_simple_flat(self, cluster_templ):
         """Deploy cluster in simple mode with flat nova-network
 
         Scenario:
@@ -92,10 +94,6 @@ class SimpleFlat(TestBasic):
         Snapshot: deploy_simple_flat
 
         """
-        if settings.CREATE_ENV:
-            self.env.revert_snapshot("ready_with_3_slaves")
-
-        cluster_templ = self.templates.get('flat')
         if not cluster_templ.get('release'):
             cluster_templ['release'] = 1
 
@@ -155,7 +153,7 @@ class SimpleFlat(TestBasic):
             floating_ip.ip, "sudo cat /root/test.txt")
         assert_true(res == 'Hello World', 'file content is {0}'.format(res))
 
-    @test(depends_on=[deploy_simple_flat],
+    @test(depends_on=[],
           groups=["simple_flat_node_deletion", "baremetal2"])
     @log_snapshot_on_error
     def simple_flat_node_deletion(self):
@@ -309,7 +307,7 @@ class SimpleFlat(TestBasic):
 @test(groups=["thread_2"])
 class SimpleVlan(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
-          groups=["deploy_simple_vlan", "simple_nova_vlan"])
+          groups=["deploy_simple_vlan", "simple_nova_vlan","gleb"])
     @log_snapshot_on_error
     def deploy_simple_vlan(self):
         """Deploy cluster in simple mode with nova-network VLAN Manager
@@ -328,36 +326,26 @@ class SimpleVlan(TestBasic):
         Snapshot: deploy_simple_vlan
 
         """
-        self.env.revert_snapshot("ready_with_3_slaves")
+        if settings.CREATE_ENV:
+            self.env.revert_snapshot("ready_with_3_slaves")
 
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=DEPLOYMENT_MODE_SIMPLE,
-            settings={
-                'tenant': 'novaSimpleVlan',
-                'user': 'novaSimpleVlan',
-                'password': 'novaSimpleVlan'
-            }
-        )
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-01': ['controller'],
-                'slave-02': ['compute']
-            }
-        )
-        self.fuel_web.update_vlan_network_fixed(
-            cluster_id, amount=8, network_size=32)
-        self.fuel_web.deploy_cluster_wait(cluster_id)
-        self.fuel_web.assert_cluster_ready(
-            'slave-01', smiles_count=6, networks_count=8, timeout=300)
+        cluster_templ = self.templates.get('simple_vlan')
 
-        self.fuel_web.verify_network(cluster_id)
+        with cert_script.make_cluster(self.conn, cluster_templ) as cluster_obj:
+            self.fuel_web.update_vlan_network_fixed(
+                cluster_id, amount=8, network_size=32)
+            self.fuel_web.deploy_cluster_wait(cluster_id)
+            self.fuel_web.assert_cluster_ready(
+                'slave-01', smiles_count=6, networks_count=8, timeout=300)
 
-        self.fuel_web.run_ostf(
-            cluster_id=cluster_id)
+            self.fuel_web.verify_network(cluster_id)
 
-        self.env.make_snapshot("deploy_simple_vlan")
+            self.fuel_web.run_ostf(
+                cluster_id=cluster_id)
+
+        if settings.CREATE_ENV:
+            self.env.make_snapshot("deploy_simple_vlan", is_make=True)
+
 
 
 @test(groups=["thread_2", "multirole"])
