@@ -1,6 +1,6 @@
-name: simple_vlan
-
+name: neutron_vlan_ha
 release: 1
+deployment_mode: "ha_compact"
 
 nodes:
     node1:
@@ -9,11 +9,25 @@ nodes:
 
     node2:
       roles:
+        - "controller"
+
+    node3:
+      roles:
+        - "controller"
+
+    node4:
+      roles:
+        - "compute"
+
+    node5:
+      roles:
         - "compute"
 
 timeout: 3600
 settings:
-    net_provider: nova_network
+    net_provider: neutron
+    net_segment_type: vlan
+
 network_configuration:
   networks:
     public:

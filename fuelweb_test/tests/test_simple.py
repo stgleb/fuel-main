@@ -307,9 +307,11 @@ class SimpleFlat(TestBasic):
 @test(groups=["thread_2"])
 class SimpleVlan(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
-          groups=["deploy_simple_vlan", "simple_nova_vlan","gleb"])
+          groups=["deploy_simple_vlan", "simple_nova_vlan", "gleb1"])
+    @revert_snapshot("ready_with_3_slaves")
     @log_snapshot_on_error
-    def deploy_simple_vlan(self):
+    @cluster_template("simple_vlan")
+    def deploy_simple_vlan(self, cluster_templ):
         """Deploy cluster in simple mode with nova-network VLAN Manager
 
         Scenario:
@@ -326,11 +328,6 @@ class SimpleVlan(TestBasic):
         Snapshot: deploy_simple_vlan
 
         """
-        if settings.CREATE_ENV:
-            self.env.revert_snapshot("ready_with_3_slaves")
-
-        cluster_templ = self.templates.get('simple_vlan')
-
         with cert_script.make_cluster(self.conn, cluster_templ) as cluster_obj:
             self.fuel_web.update_vlan_network_fixed(
                 cluster_id, amount=8, network_size=32)

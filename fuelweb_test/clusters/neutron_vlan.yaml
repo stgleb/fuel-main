@@ -1,5 +1,5 @@
-name: simple_vlan
-
+name: neutron_vlan
+deployment_mode: "multinode"
 release: 1
 
 nodes:
@@ -11,9 +11,18 @@ nodes:
       roles:
         - "compute"
 
+    node3:
+      roles:
+        - "compute"
+
 timeout: 3600
 settings:
-    net_provider: nova_network
+    net_provider: neutron
+    net_segment_type: vlan
+    tenant: simpleVlan
+    user: simpleVlan
+    password: simpleVlan
+
 network_configuration:
   networks:
     public:
