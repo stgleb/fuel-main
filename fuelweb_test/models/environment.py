@@ -70,8 +70,8 @@ class SSH(object):
 class BMEnvModel(SSH):
     def __init__(self):
         super(BMEnvModel, self).__init__()
-        self.fuel_web = FuelWebClient('172.18.201.16', self)
         self.admin_node_ip = settings.ADMIN_NODE_IP
+        self.fuel_web = FuelWebClient(self.admin_node_ip, self)
 
     @logwrap
     def get_ebtables_by_nodes(self, cluster_id, nodes):
