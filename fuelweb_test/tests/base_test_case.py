@@ -77,10 +77,15 @@ class TestBasic(object):
 
     @property
     def conn(self):
-        if settings.CREATE_ENV:
-            return fuel_rest_api.Urllib2HTTP(self.env.get_admin_node_ip())
+        admin_node_ip = self.env.get_admin_node_ip() if settings.CREATE_ENV \
+            else settings.ADMIN_NODE_IP
+        nailgun_url = "http://{0}:8000".format(admin_node_ip)
+        if settings.KEYSTONE_AUTH_CREDS:
+            return fuel_rest_api.KeystoneAuth(nailgun_url,
+                                              settings.KEYSTONE_AUTH_CREDS,
+                                              admin_node_ip=admin_node_ip)
         else:
-            return fuel_rest_api.Urllib2HTTP(settings.NAILGUN_URL)
+            return fuel_rest_api.Urllib2HTTP(nailgun_url)
 
     def check_run(self, snapshot_name):
         """Checks if run of current test is required.

@@ -16,11 +16,13 @@ import traceback
 
 from proboscis import asserts
 from proboscis import test
+from certification_script import cert_script
 
 from fuelweb_test.helpers.decorators import log_snapshot_on_error
 from fuelweb_test import settings as hlp_data
 from fuelweb_test import logger
 from fuelweb_test.tests import base_test_case
+from fuelweb_test.tests.base_test_case import cluster_template
 
 
 @test(groups=["thread_2", "cluster_actions"])
@@ -29,7 +31,8 @@ class EnvironmentAction(base_test_case.TestBasic):
     @test(depends_on=[base_test_case.SetupEnvironment.prepare_slaves_3],
           groups=["smoke", "deploy_flat_stop_reset_on_deploying"])
     @log_snapshot_on_error
-    def deploy_flat_stop_on_deploying(self):
+    @cluster_template("simple1")
+    def deploy_flat_stop_on_deploying(self, cluster_template):
         """Stop reset cluster in simple mode with flat nova-network
 
         Scenario:
@@ -48,28 +51,20 @@ class EnvironmentAction(base_test_case.TestBasic):
         """
         self.env.revert_snapshot("ready_with_3_slaves")
 
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=hlp_data.DEPLOYMENT_MODE_SIMPLE,
-            settings={
-                'tenant': 'stop_deploy',
-                'user': 'stop_deploy',
-                'password': 'stop_deploy'
+        access = {
+            'tenant': 'stop_deploy',
+            'user': 'stop_deploy',
+            'password': 'stop_deploy'
 
-            }
-        )
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-01': ['controller'],
-                'slave-02': ['compute']
-            }
-        )
+        }
+        cluster_template['settings'].update(access)
+        cluster_template['deployment_mode'] = 'multinode'
 
-        self.fuel_web.provisioning_cluster_wait(cluster_id)
-        self.fuel_web.deploy_task_wait(cluster_id=cluster_id, progress=10)
-        self.fuel_web.stop_deployment_wait(cluster_id)
-        self.fuel_web.wait_nodes_get_online_state(self.env.nodes().slaves[:2])
+        with cert_script.make_cluster(self.conn, cluster_template) as cluster:
+            self.fuel_web.stop_deployment_wait(cluster.id)
+            nodes = cluster.nodes
+            self.fuel_web.wait_nodes_get_online_state(nodes,
+                                                      nailgun_nodes=True)
 
         self.fuel_web.update_nodes(
             cluster_id,
