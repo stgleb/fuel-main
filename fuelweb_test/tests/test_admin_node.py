@@ -13,27 +13,37 @@
 #    under the License.
 
 
+import xmlrpclib
+
 from devops.helpers.helpers import http
 from devops.helpers.helpers import wait
 from proboscis.asserts import assert_equal
 from proboscis import SkipTest
 from proboscis import test
-import xmlrpclib
 
 from fuelweb_test.helpers import checkers
+
 from fuelweb_test.helpers.decorators import log_snapshot_on_error
 from fuelweb_test.settings import OPENSTACK_RELEASE
 from fuelweb_test.settings import OPENSTACK_RELEASE_CENTOS
 from fuelweb_test.tests.base_test_case import SetupEnvironment
+
 from fuelweb_test.tests.base_test_case import TestBasic
-from fuelweb_test import logger
+from fuelweb_test import logger, settings
 
 
-@test(groups=["thread_1"])
+from fuelweb_test.tests.base_test_case import revert_snapshot
+from fuelweb_test.tests.base_test_case import bootstrap_nodes
+from certification_script import cert_script
+
+
+
+@test(groups=["jane"])
 class TestAdminNode(TestBasic):
     @test(depends_on=[SetupEnvironment.setup_master],
           groups=["test_cobbler_alive"])
     def test_cobbler_alive(self):
+
         """Test current installation has correctly setup cobbler
 
         API and cobbler HTTP server are alive
@@ -45,7 +55,8 @@ class TestAdminNode(TestBasic):
         """
         if OPENSTACK_RELEASE_CENTOS not in OPENSTACK_RELEASE:
             raise SkipTest()
-        self.env.revert_snapshot("empty")
+        if settings.CREATE_ENV:
+            self.env.revert_snapshot("empty")
         wait(
             lambda: http(host=self.env.get_admin_node_ip(), url='/cobbler_api',
                          waited_code=501),
@@ -74,7 +85,8 @@ class TestAdminNode(TestBasic):
         """
         if OPENSTACK_RELEASE_CENTOS not in OPENSTACK_RELEASE:
             raise SkipTest()
-        self.env.revert_snapshot("empty")
+        if settings.CREATE_ENV:
+            self.env.revert_snapshot("empty")
         ps_output = self.env.get_admin_remote().execute('ps ax')['stdout']
         astute_master = filter(lambda x: 'astute master' in x, ps_output)
         logger.info("Found astute processes: %s" % astute_master)
