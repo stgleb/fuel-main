@@ -383,7 +383,8 @@ class MultiroleComputeCinder(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
           groups=["deploy_multirole_compute_cinder"])
     @log_snapshot_on_error
-    def deploy_multirole_compute_cinder(self):
+    @cluster_template("multirolecompute")
+    def deploy_multirole_compute_cinder(self, cluster_templ):
         """Deploy cluster in simple mode with multi-role compute and cinder
 
         Scenario:
@@ -397,27 +398,17 @@ class MultiroleComputeCinder(TestBasic):
         Snapshot: deploy_multirole_compute_cinder
 
         """
-        self.env.revert_snapshot("ready_with_3_slaves")
+        if not cluster_templ.get('release'):
+            cluster_templ['release'] = 1
+        cluster_templ['deployment_mode']=DEPLOYMENT_MODE_SIMPLE
 
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=DEPLOYMENT_MODE_SIMPLE
-        )
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-01': ['controller'],
-                'slave-02': ['compute', 'cinder'],
-                'slave-03': ['compute', 'cinder']
-            }
-        )
-        self.fuel_web.deploy_cluster_wait(cluster_id)
+        with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
+            self.fuel_web.verify_network(cluster.id)
+            self.fuel_web.run_ostf(
+                cluster_id=cluster.id)
 
-        self.fuel_web.verify_network(cluster_id)
-
-        self.fuel_web.run_ostf(cluster_id=cluster_id)
-
-        self.env.make_snapshot("deploy_multirole_compute_cinder")
+        if settings.CREATE_ENV:
+            self.env.make_snapshot("deploy_multirole_compute_cinder")
 
 
 @test(groups=["thread_2"])
