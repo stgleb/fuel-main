@@ -1,0 +1,41 @@
+name: neutron_gre_ha_public_networks
+release: 1
+deployment_mode: "ha_compact"
+
+nodes:
+    node1:
+      roles:
+        - "controller"
+
+    node2:
+      roles:
+        - "controller"
+
+    node3:
+      roles:
+        - "controller"
+
+    node4:
+      roles:
+        - "compute"
+
+    node5:
+      roles:
+        - "compute"
+
+timeout: 3600
+settings:
+    net_provider: neutron
+    net_segment_type: gre
+    tenant: haGre
+    user: haGre
+    password: haGre
+    assign_to_all_nodes: True
+
+network_configuration:
+  networks:
+    public:
+      ip_ranges:
+        - [172.18.202.2, 172.18.202.15]
+      cidr: 172.18.202.0/26
+      gateway: 172.18.202.1
