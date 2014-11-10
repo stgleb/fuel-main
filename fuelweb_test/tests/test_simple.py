@@ -349,6 +349,7 @@ class SimpleVlan(TestBasic):
 class MultiroleControllerCinder(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
           groups=["deploy_multirole_controller_cinder"])
+    @revert_snapshot("ready_with_3_slaves")
     @log_snapshot_on_error
     @cluster_template("multirolecontroller")
     def deploy_multirole_controller_cinder(self, cluster_templ):
