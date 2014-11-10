@@ -477,7 +477,7 @@ class SimpleCinder(TestBasic):
           groups=["deploy_simple_cinder", "simple_nova_cinder"])
     @log_snapshot_on_error
     @cluster_template("simplecinder")
-    def deploy_simple_cinder(self, cluster_templпше ):
+    def deploy_simple_cinder(self, cluster_templ):
         """Deploy cluster in simple mode with cinder
 
         Scenario:
