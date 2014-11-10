@@ -475,7 +475,8 @@ class SimpleCinder(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
           groups=["deploy_simple_cinder", "simple_nova_cinder"])
     @log_snapshot_on_error
-    def deploy_simple_cinder(self):
+    @cluster_template("simplecinder")
+    def deploy_simple_cinder(self, cluster_templпше ):
         """Deploy cluster in simple mode with cinder
 
         Scenario:
@@ -491,32 +492,25 @@ class SimpleCinder(TestBasic):
         Snapshot: deploy_simple_cinder
 
         """
-        self.env.revert_snapshot("ready_with_3_slaves")
+        if not cluster_templ.get('release'):
+            cluster_templ['release'] = 1
+        cluster_templ['deployment_mode']=DEPLOYMENT_MODE_SIMPLE
 
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=DEPLOYMENT_MODE_SIMPLE
-        )
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-01': ['controller'],
-                'slave-02': ['compute'],
-                'slave-03': ['cinder']
-            }
-        )
-        self.fuel_web.deploy_cluster_wait(cluster_id)
-        self.fuel_web.assert_cluster_ready(
-            'slave-01', smiles_count=6, networks_count=1, timeout=300)
+        with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
+            self.fuel_web.verify_network(cluster.id)
+            node = cluster.nodes.controller[0]
+            ip = node.get_ip()
+            checkers.verify_network_configuration(
+                node=node,
+                remote=self.env.get_ssh_to_remote(ip)
+            )
+            self.fuel_web.run_ostf(
+                cluster_id=cluster.id)
 
-        self.fuel_web.check_fixed_network_cidr(
-            cluster_id, self.env.get_ssh_to_remote_by_name('slave-01'))
-        self.fuel_web.verify_network(cluster_id)
-        self.env.verify_network_configuration("slave-01")
+        if settings.CREATE_ENV:
+            self.env.make_snapshot("deploy_simple_cinder")
 
-        self.fuel_web.run_ostf(cluster_id=cluster_id)
 
-        self.env.make_snapshot("deploy_simple_cinder")
 
 
 @test(groups=["thread_1"])
