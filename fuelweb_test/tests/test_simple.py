@@ -39,11 +39,11 @@ from certification_script import cert_script
 @test(groups=["thread_2"])
 class OneNodeDeploy(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_release],
-          groups=["deploy_one_node", "baremetal1"])
+          groups=["deploy_one_node", "baremetal5"])
     @revert_snapshot("ready")
     @bootstrap_nodes("1")
-    @cluster_template("simple1")
-    def deploy_one_node(self, cluster_templ):
+    @cert_script.with_cluster("simple", release=1)
+    def deploy_one_node(self, cluster):
         """Deploy cluster with controller node only
 
         Scenario:
@@ -54,19 +54,15 @@ class OneNodeDeploy(TestBasic):
             services, there are no errors in logs
 
         """
-        if not cluster_templ.get('release'):
-            cluster_templ['release'] = 1
-
-        with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
-            node = cluster.nodes.controller[0]
-            self.fuel_web.assert_cluster_ready(node.name,
-                                               ip=node.get_ip(),
-                                               smiles_count=4,
-                                               networks_count=1, timeout=300)
-            self.fuel_web.run_single_ostf_test(
-                cluster_id=cluster.id, test_sets=['sanity'],
-                test_name=('fuel_health.tests.sanity.test_sanity_identity'
-                           '.SanityIdentityTest.test_list_users'))
+        node = cluster.nodes.controller[0]
+        self.fuel_web.assert_cluster_ready(node.name,
+                                           ip=node.get_ip(),
+                                           smiles_count=4,
+                                           networks_count=1, timeout=300)
+        self.fuel_web.run_single_ostf_test(
+            cluster_id=cluster.id, test_sets=['sanity'],
+            test_name=('fuel_health.tests.sanity.test_sanity_identity'
+                       '.SanityIdentityTest.test_list_users'))
 
 
 @test(groups=["thread_2"])
@@ -76,8 +72,8 @@ class SimpleFlat(TestBasic):
                   "baremetal"])
     @log_snapshot_on_error
     @revert_snapshot("ready_with_3_slaves")
-    @cluster_template("flat")
-    def deploy_simple_flat(self, cluster_templ):
+    @cert_script.with_cluster("flat", release=1)
+    def deploy_simple_flat(self, cluster):
         """Deploy cluster in simple mode with flat nova-network
 
         Scenario:
@@ -94,27 +90,23 @@ class SimpleFlat(TestBasic):
         Snapshot: deploy_simple_flat
 
         """
-        if not cluster_templ.get('release'):
-            cluster_templ['release'] = 1
+        node = cluster.nodes.controller[0]
+        ip = node.get_ip()
+        self.fuel_web.assert_cluster_ready(node.name, ip=ip,
+                                           smiles_count=6,
+                                           networks_count=1, timeout=300)
+        self.fuel_web.check_fixed_network_cidr(
+            cluster.id, self.env.get_ssh_to_remote(ip))
 
-        with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
-            node = cluster.nodes.controller[0]
-            ip = node.get_ip()
-            self.fuel_web.assert_cluster_ready(node.name, ip=ip,
-                                               smiles_count=6,
-                                               networks_count=1, timeout=300)
-            self.fuel_web.check_fixed_network_cidr(
-                cluster.id, self.env.get_ssh_to_remote(ip))
+        self.fuel_web.verify_network(cluster.id)
 
-            self.fuel_web.verify_network(cluster.id)
+        checkers.verify_network_configuration(
+            node=node,
+            remote=self.env.get_ssh_to_remote(ip)
+        )
 
-            checkers.verify_network_configuration(
-                node=node,
-                remote=self.env.get_ssh_to_remote(ip)
-            )
-
-            self.fuel_web.run_ostf(
-                cluster_id=cluster.id)
+        self.fuel_web.run_ostf(
+            cluster_id=cluster.id)
 
         if settings.CREATE_ENV:
             self.env.make_snapshot("deploy_simple_flat", is_make=True)
@@ -476,7 +468,7 @@ class SimpleCinder(TestBasic):
           groups=["deploy_simple_cinder", "simple_nova_cinder"])
     @log_snapshot_on_error
     @cluster_template("simplecinder")
-    def deploy_simple_cinder(self, cluster_templпше ):
+    def deploy_simple_cinder(self, cluster_tempate):
         """Deploy cluster in simple mode with cinder
 
         Scenario:

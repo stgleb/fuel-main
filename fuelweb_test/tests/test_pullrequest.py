@@ -34,8 +34,8 @@ class TestPullRequest(TestBasic):
           groups=["pullrequest"])
     @log_snapshot_on_error
     @revert_snapshot("ready_with_3_slaves")
-    @cluster_template("pullrequest1")
-    def deploy_pr_ha(self,cluster_templ):
+    @cert_script.with_cluster("simple1", release=1)
+    def deploy_pr_ha(self, cluster):
         """Deploy cluster in HA mode with Neutron GRE
 
         Scenario:
@@ -52,10 +52,4 @@ class TestPullRequest(TestBasic):
         if OPENSTACK_RELEASE == OPENSTACK_RELEASE_REDHAT:
             raise SkipTest()
 
-        if not cluster_templ.get('release'):
-            cluster_templ['release'] = 1
-
-        with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
-
-
-            self.fuel_web.run_ostf(cluster_id=cluster.id)
+        self.fuel_web.run_ostf(cluster_id=cluster.id)
