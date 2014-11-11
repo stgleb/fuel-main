@@ -468,7 +468,7 @@ class SimpleCinder(TestBasic):
           groups=["deploy_simple_cinder", "simple_nova_cinder"])
     @log_snapshot_on_error
     @cluster_template("simplecinder")
-    def deploy_simple_cinder(self, cluster_templпше ):
+    def deploy_simple_cinder(self, cluster_templ):
         """Deploy cluster in simple mode with cinder
 
         Scenario:
@@ -721,6 +721,7 @@ class MultinicBootstrap(TestBasic):
 class DeleteEnvironment(TestBasic):
     @test(depends_on=[SimpleFlat.deploy_simple_flat],
           groups=["delete_environment"])
+    @revert_snapshot("ready_with_3_slaves")
     @log_snapshot_on_error
     def delete_environment(self):
         """Delete existing environment
@@ -732,7 +733,7 @@ class DeleteEnvironment(TestBasic):
             3. Verify node returns to unallocated pull
 
         """
-        self.env.revert_snapshot("deploy_simple_flat")
+
 
         cluster_id = self.fuel_web.get_last_created_cluster()
         self.fuel_web.client.delete_cluster(cluster_id)
