@@ -85,7 +85,7 @@ class TestBasic(object):
                                               settings.KEYSTONE_AUTH_CREDS,
                                               admin_node_ip=admin_node_ip)
         else:
-            return fuel_rest_api.Urllib2HTTP(nailgun_url)
+            return fuel_rest_api.Urllib2HTTP(nailgun_url, echo=True)
 
     def check_run(self, snapshot_name):
         """Checks if run of current test is required.
