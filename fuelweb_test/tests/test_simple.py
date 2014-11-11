@@ -499,12 +499,20 @@ class SimpleCinder(TestBasic):
 
         with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
             self.fuel_web.verify_network(cluster.id)
+
             node = cluster.nodes.controller[0]
             ip = node.get_ip()
+
             checkers.verify_network_configuration(
                 node=node,
                 remote=self.env.get_ssh_to_remote(ip)
             )
+
+            self.fuel_web.assert_cluster_ready(
+                node.name, ip=ip, smiles_count=6, networks_count=1, timeout=300)
+            self.fuel_web.check_fixed_network_cidr(
+                cluster.id, self.env.get_ssh_to_remote(ip))
+
             self.fuel_web.run_ostf(
                 cluster_id=cluster.id)
 
