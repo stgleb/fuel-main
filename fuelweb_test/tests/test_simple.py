@@ -39,7 +39,7 @@ from certification_script import cert_script
 @test(groups=["thread_2"])
 class OneNodeDeploy(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_release],
-          groups=["deploy_one_node", "baremetal5"])
+          groups=["deploy_one_node", "baremetal1"])
     @revert_snapshot("ready")
     @bootstrap_nodes("1")
     @cert_script.with_cluster("simple", release=1)
@@ -468,7 +468,7 @@ class SimpleCinder(TestBasic):
           groups=["deploy_simple_cinder", "simple_nova_cinder"])
     @log_snapshot_on_error
     @cluster_template("simplecinder")
-    def deploy_simple_cinder(self, cluster_tempate):
+    def deploy_simple_cinder(self, cluster_templпше ):
         """Deploy cluster in simple mode with cinder
 
         Scenario:
