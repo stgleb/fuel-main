@@ -39,7 +39,7 @@ from certification_script import cert_script
 @test(groups=["thread_2"])
 class OneNodeDeploy(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_release],
-          groups=["deploy_one_node", "baremetal1"])
+          groups=["deploy_one_node", "baremetal"])
     @revert_snapshot("ready")
     @bootstrap_nodes("1")
     @cert_script.with_cluster("simple", release=1)
@@ -162,9 +162,8 @@ class SimpleFlat(TestBasic):
             self.env.revert_snapshot("deploy_simple_flat")
 
         cluster_id = self.fuel_web.get_last_created_cluster()
-        cluster = cert_script.fuel_rest_api.reflect_cluster(
-            cert_script.fuel_rest_api.Urllib2HTTP(settings.NAILGUN_URL),
-            cluster_id)
+        cluster = cert_script.fuel_rest_api.reflect_cluster(self.conn,
+                                                            cluster_id)
         compute = cluster.nodes.compute[0]
         nailgun_nodes = self.fuel_web.update_nodes(
             cluster_id, {compute: ['compute']}, False, True, )
@@ -468,7 +467,7 @@ class SimpleCinder(TestBasic):
           groups=["deploy_simple_cinder", "simple_nova_cinder"])
     @log_snapshot_on_error
     @cluster_template("simplecinder")
-    def deploy_simple_cinder(self, cluster_templпше ):
+    def deploy_simple_cinder(self, cluster_templ):
         """Deploy cluster in simple mode with cinder
 
         Scenario:
