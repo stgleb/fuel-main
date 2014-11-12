@@ -197,6 +197,8 @@ class SimpleFlat(TestBasic):
             8. Restore first VLAN
 
         """
+        if settings.CREATE_ENV:
+            self.env.revert_snapshot("ready_with_3_slaves")
         if not cluster_templ.get('release'):
             cluster_templ['release'] = 1
         with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
@@ -239,6 +241,7 @@ class SimpleFlat(TestBasic):
         Snapshot: simple_flat_add_compute
 
         """
+
         if settings.CREATE_ENV:
             self.env.revert_snapshot("ready_with_3_slaves")
 
