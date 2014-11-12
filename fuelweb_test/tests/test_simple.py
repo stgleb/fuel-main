@@ -735,7 +735,9 @@ class DeleteEnvironment(TestBasic):
 
 
         cluster_id = self.fuel_web.get_last_created_cluster()
-        self.fuel_web.client.delete_cluster(cluster_id)
+        cluster = cert_script.fuel_rest_api.reflect_cluster(
+            self.conn, cluster_id)
+        cluster.delete()
         nailgun_nodes = self.fuel_web.client.list_nodes()
         nodes = filter(lambda x: x["pending_deletion"] is True, nailgun_nodes)
         assert_true(
