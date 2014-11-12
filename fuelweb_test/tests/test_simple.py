@@ -489,12 +489,20 @@ class SimpleCinder(TestBasic):
 
         with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
             self.fuel_web.verify_network(cluster.id)
+
             node = cluster.nodes.controller[0]
             ip = node.get_ip()
+
             checkers.verify_network_configuration(
                 node=node,
                 remote=self.env.get_ssh_to_remote(ip)
             )
+
+            self.fuel_web.assert_cluster_ready(
+                node.name, ip=ip, smiles_count=6, networks_count=1, timeout=300)
+            self.fuel_web.check_fixed_network_cidr(
+                cluster.id, self.env.get_ssh_to_remote(ip))
+
             self.fuel_web.run_ostf(
                 cluster_id=cluster.id)
 
@@ -712,6 +720,7 @@ class MultinicBootstrap(TestBasic):
 class DeleteEnvironment(TestBasic):
     @test(depends_on=[SimpleFlat.deploy_simple_flat],
           groups=["delete_environment"])
+    @revert_snapshot("ready_with_3_slaves")
     @log_snapshot_on_error
     def delete_environment(self):
         """Delete existing environment
@@ -723,7 +732,7 @@ class DeleteEnvironment(TestBasic):
             3. Verify node returns to unallocated pull
 
         """
-        self.env.revert_snapshot("deploy_simple_flat")
+
 
         cluster_id = self.fuel_web.get_last_created_cluster()
         self.fuel_web.client.delete_cluster(cluster_id)
