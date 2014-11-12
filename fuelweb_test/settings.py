@@ -257,7 +257,7 @@ UPDATE_TIMEOUT = os.environ.get('UPDATE_TIMEOUT', 3600)
 ###############################
 
 CREATE_ENV = os.environ.get('CREATE_ENV', 'false') == 'true'
-CLUSTER_TEMPLATES_DIR = '/etc/fuel/tests/clusters'
+CLUSTER_TEMPLATES_DIR = '/home/yportnova/fuel/fuel-main/fuelweb_test/clusters'
 ADMIN_NODE_IP = '172.18.201.17'
 ADMIN_NODE_PASS = 'test37'
 KEYSTONE_AUTH_CREDS = {'username': 'admin',

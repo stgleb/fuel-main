@@ -72,7 +72,7 @@ class SimpleFlat(TestBasic):
                   "baremetal"])
     @log_snapshot_on_error
     @revert_snapshot("ready_with_3_slaves")
-    @cert_script.with_cluster("flat", release=1)
+    @cert_script.with_cluster("flat", release=1, tear_down=False)
     def deploy_simple_flat(self, cluster):
         """Deploy cluster in simple mode with flat nova-network
 
