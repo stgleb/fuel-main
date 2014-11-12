@@ -181,7 +181,8 @@ class SimpleFlat(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
           groups=["simple_flat_blocked_vlan"])
     @log_snapshot_on_error
-    def simple_flat_blocked_vlan(self):
+    @cluster_template("flat")
+    def simple_flat_blocked_vlan(self, cluster_templ):
         """Verify network verification with blocked VLANs
 
         Scenario:
@@ -196,31 +197,24 @@ class SimpleFlat(TestBasic):
             8. Restore first VLAN
 
         """
-        self.env.revert_snapshot("ready_with_3_slaves")
+        if not cluster_templ.get('release'):
+            cluster_templ['release'] = 1
+        with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
+            cluster_id=cluster.id
+            node = cluster.nodes.controller[0]
+            ip = node.get_ip()
+            self.fuel_web.assert_cluster_ready(node.name, ip=ip,
+                                               smiles_count=6,
+                                               networks_count=1, timeout=300)
 
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=DEPLOYMENT_MODE_SIMPLE
-        )
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-01': ['controller'],
-                'slave-02': ['compute']
-            }
-        )
-        self.fuel_web.deploy_cluster_wait(cluster_id)
-        self.fuel_web.assert_cluster_ready(
-            'slave-01', smiles_count=6, networks_count=1, timeout=300)
-
-        ebtables = self.env.get_ebtables(
-            cluster_id, self.env.nodes().slaves[:2])
-        ebtables.restore_vlans()
-        try:
-            ebtables.block_first_vlan()
-            self.fuel_web.verify_network(cluster_id, success=False)
-        finally:
-            ebtables.restore_first_vlan()
+            ebtables = self.env.get_ebtables(
+                cluster_id, self.env.nodes().slaves[:2])
+            ebtables.restore_vlans()
+            try:
+                ebtables.block_first_vlan()
+                self.fuel_web.verify_network(cluster_id, success=False)
+            finally:
+                ebtables.restore_first_vlan()
 
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
           groups=["simple_flat_add_compute", "baremetal"])
