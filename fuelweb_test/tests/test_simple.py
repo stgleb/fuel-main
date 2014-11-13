@@ -320,8 +320,9 @@ class SimpleVlan(TestBasic):
             self.fuel_web.update_vlan_network_fixed(
                 cluster_id, amount=8, network_size=32)
             self.fuel_web.deploy_cluster_wait(cluster_id)
+            node = cluster.nodes.controller[0]
             self.fuel_web.assert_cluster_ready(
-                'slave-01', smiles_count=6, networks_count=8, timeout=300)
+               node.name, smiles_count=6, networks_count=8, timeout=300)
 
             self.fuel_web.verify_network(cluster_id)
 
@@ -404,7 +405,9 @@ class FloatingIPs(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
           groups=["deploy_floating_ips"])
     @log_snapshot_on_error
-    def deploy_floating_ips(self):
+    @revert_snapshot("ready_with_3_slaves")
+    @cluster_template("simplefloatingip")
+    def deploy_floating_ips(self, cluster_templ):
         """Deploy cluster with non-default 3 floating IPs ranges
 
         Scenario:
@@ -419,43 +422,31 @@ class FloatingIPs(TestBasic):
         Snapshot: deploy_floating_ips
 
         """
-        self.env.revert_snapshot("ready_with_3_slaves")
+        if settings.CREATE_ENV:
+            self.env.revert_snapshot("ready_with_3_slaves")
+        if not cluster_templ.get('release'):
+            cluster_templ['release'] = 1
 
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=DEPLOYMENT_MODE_SIMPLE,
-            settings={
-                'tenant': 'floatingip',
-                'user': 'floatingip',
-                'password': 'floatingip'
-            }
-        )
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-01': ['controller'],
-                'slave-02': ['compute']
-            }
-        )
+        with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
+            cluster_id=cluster.id
+            networking_parameters = {
+                "floating_ranges": self.fuel_web.get_floating_ranges()[0]}
 
-        networking_parameters = {
-            "floating_ranges": self.fuel_web.get_floating_ranges()[0]}
+            self.fuel_web.client.update_network(
+                cluster_id,
+                networking_parameters=networking_parameters
+            )
 
-        self.fuel_web.client.update_network(
-            cluster_id,
-            networking_parameters=networking_parameters
-        )
 
-        self.fuel_web.deploy_cluster_wait(cluster_id)
 
         # assert ips
-        expected_ips = self.fuel_web.get_floating_ranges()[1]
-        self.fuel_web.assert_cluster_floating_list('slave-02', expected_ips)
+            expected_ips = self.fuel_web.get_floating_ranges()[1]
+            self.fuel_web.assert_cluster_floating_list('slave-02', expected_ips)
 
-        self.fuel_web.run_ostf(
-            cluster_id=cluster_id)
-
-        self.env.make_snapshot("deploy_floating_ips")
+            self.fuel_web.run_ostf(
+                cluster_id=cluster_id)
+        if settings.CREATE_ENV:
+             self.env.make_snapshot("deploy_floating_ips")
 
 
 @test(groups=["simple_cinder"])
