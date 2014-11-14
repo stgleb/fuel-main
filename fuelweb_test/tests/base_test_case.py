@@ -198,6 +198,8 @@ class SetupEnvironment(TestBasic):
         Snapshot: ready_with_5_slaves
 
         """
+        if not settings.CREATE_ENV:
+            return
         self.check_run("ready_with_5_slaves")
         self.env.revert_snapshot("ready")
         self.env.bootstrap_nodes(self.env.nodes().slaves[:5])

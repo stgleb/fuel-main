@@ -30,11 +30,12 @@ from certification_script import cert_script
 class NeutronGre(TestBasic):
 
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
-          groups=["deploy_neutron_gre", "simple_neutron_gre", "gleb2"])
+          groups=["deploy_neutron_gre", "simple_neutron_gre", "gleb"])
     @revert_snapshot("ready_with_3_slaves")
     @log_snapshot_on_error
-    @cluster_template("neutron_simple_gre")
-    def deploy_neutron_gre(self, cluster_templ):
+    # @cluster_template("neutron_simple_gre")
+    @cert_script.with_cluster("neutron_simple_gre", release=1)
+    def deploy_neutron_gre(self, cluster_obj):
         """Deploy cluster in simple mode with Neutron GRE
 
         Scenario:
@@ -48,23 +49,17 @@ class NeutronGre(TestBasic):
         Snapshot deploy_neutron_gre
 
         """
-        with cert_script.make_cluster(self.conn, cluster_templ) as cluster_obj:
+        cluster = self.fuel_web.client.get_cluster(cluster_obj.id)
+        assert_equal(str(cluster['net_provider']), 'neutron')
+        # assert_equal(str(cluster['net_segment_type']), segment_type)
+        self.fuel_web.check_fixed_network_cidr(
+            cluster_obj.id, self.env.get_ssh_to_remote_by_name('slave-01'))
 
-            self.fuel_web.update_internal_network(cluster_obj.id, '192.168.196.0/26',
-                                                  '192.168.196.1')
-            self.fuel_web.deploy_cluster_wait(cluster_obj.id)
+        self.fuel_web.verify_network(cluster_obj.id)
+        self.fuel_web.security.verify_firewall(cluster_obj.id)
 
-            cluster = self.fuel_web.client.get_cluster(cluster_obj.id)
-            assert_equal(str(cluster['net_provider']), 'neutron')
-            # assert_equal(str(cluster['net_segment_type']), segment_type)
-            self.fuel_web.check_fixed_network_cidr(
-                cluster_obj.id, self.env.get_ssh_to_remote_by_name('slave-01'))
-
-            self.fuel_web.verify_network(cluster_obj.id)
-            self.fuel_web.security.verify_firewall(cluster_obj.id)
-
-            self.fuel_web.run_ostf(
-                cluster_id=cluster_obj.id)
+        self.fuel_web.run_ostf(
+            cluster_id=cluster_obj.id)
 
         if settings.CREATE_ENV:
             self.env.make_snapshot("deploy_neutron_gre")
@@ -78,7 +73,8 @@ class NeutronVlan(TestBasic):
     @revert_snapshot("ready_with_3_slaves")
     @log_snapshot_on_error
     @cluster_template("neutron_vlan")
-    def deploy_neutron_vlan(self, cluster_templ):
+    @cert_script.with_cluster("neutron_vlan", release=1)
+    def deploy_neutron_vlan(self, cluster_obj):
         """Deploy cluster in simple mode with Neutron VLAN
 
         Scenario:
@@ -92,21 +88,15 @@ class NeutronVlan(TestBasic):
         Snapshot deploy_neutron_vlan
 
         """
+        cluster = self.fuel_web.client.get_cluster(cluster_obj.id)
+        assert_equal(str(cluster['net_provider']), 'neutron')
+        # assert_equal(str(cluster['net_segment_type']), segment_type)
 
-        with cert_script.make_cluster(self.conn, cluster_templ) as cluster_obj:
-            self.fuel_web.deploy_cluster_wait(cluster_id)
+        self.fuel_web.verify_network(cluster_obj.id)
 
-            cluster = self.fuel_web.client.get_cluster(cluster_obj.id)
-            assert_equal(str(cluster['net_provider']), 'neutron')
-            # assert_equal(str(cluster['net_segment_type']), segment_type)
+        self.fuel_web.run_ostf(
+            cluster_id=cluster_obj.id)
 
-            self.fuel_web.verify_network(cluster_obj.id)
-
-            self.fuel_web.run_ostf(
-                cluster_id=cluster_obj.id)
-
-        if settings.CREATE_ENV:
-            self.env.make_snapshot("deploy_neutron_vlan")
 
 
 @test(groups=["thread_4", "neutron", "ha", "ha_neutron", "gleb"])
@@ -117,7 +107,8 @@ class NeutronGreHa(TestBasic):
     @revert_snapshot("ready_with_5_slaves")
     @log_snapshot_on_error
     @cluster_template("neutron_gre_ha")
-    def deploy_neutron_gre_ha(self, cluster_templ):
+    @cert_script.with_cluster("neutron_gre_ha", release=1)
+    def deploy_neutron_gre_ha(self, cluster_obj):
         """Deploy cluster in HA mode with Neutron GRE
 
         Scenario:
@@ -131,32 +122,29 @@ class NeutronGreHa(TestBasic):
         Snapshot deploy_neutron_gre_ha
 
         """
+        cluster = self.fuel_web.client.get_cluster(cluster_obj.id)
+        assert_equal(str(cluster['net_provider']), 'neutron')
+        # assert_equal(str(cluster['net_segment_type']), segment_type)
 
-        with cert_script.make_cluster(self.conn, cluster_templ) as cluster_obj:
-            self.fuel_web.deploy_cluster_wait(cluster_id)
+        self.fuel_web.verify_network(cluster_obj.id)
 
-            cluster = self.fuel_web.client.get_cluster(cluster_obj.id)
-            assert_equal(str(cluster['net_provider']), 'neutron')
-            # assert_equal(str(cluster['net_segment_type']), segment_type)
-
-            self.fuel_web.verify_network(cluster_obj.id)
-
-            self.fuel_web.run_ostf(
-                cluster_id=cluster_obj.id)
+        self.fuel_web.run_ostf(
+            cluster_id=cluster_obj.id)
 
         if settings.CREATE_ENV:
             self.env.make_snapshot("deploy_neutron_gre_ha")
 
 
-@test(groups=["thread_6", "neutron", "ha", "ha_neutron", "gleb"])
+@test(groups=["thread_6", "neutron", "ha", "ha_neutron", "gleb3"])
 class NeutronGreHaPublicNetwork(TestBasic):
 
     @test(depends_on=[SetupEnvironment.prepare_slaves_5],
           groups=["deploy_neutron_gre_ha_public_network"])
-    @revert_snapshot("ready_with_5_slaves")
+    @revert_snapshot("ready_with_3_slaves")
     @log_snapshot_on_error
     @cluster_template("neutron_gre_ha_public_networks")
-    def deploy_neutron_gre_ha_with_public_network(self, cluster_templ):
+    @cert_script.with_cluster("neutron_gre_ha_public_networks", release=1)
+    def deploy_neutron_gre_ha_with_public_network(self, cluster_obj):
         """Deploy cluster in HA mode with Neutron GRE and public network
            assigned to all nodes
 
@@ -173,17 +161,14 @@ class NeutronGreHaPublicNetwork(TestBasic):
         Snapshot deploy_neutron_gre_ha_public_network
 
         """
-        with cert_script.make_cluster(self.conn, cluster_templ) as cluster_obj:
-            self.fuel_web.deploy_cluster_wait(cluster_obj.id)
+        cluster = self.fuel_web.client.get_cluster(cluster_obj.id)
+        assert_equal(str(cluster['net_provider']), 'neutron')
+        # assert_equal(str(cluster['net_segment_type']), segment_type)
 
-            cluster = self.fuel_web.client.get_cluster(cluster_obj.id)
-            assert_equal(str(cluster['net_provider']), 'neutron')
-            # assert_equal(str(cluster['net_segment_type']), segment_type)
+        self.fuel_web.verify_network(cluster_obj.id)
 
-            self.fuel_web.verify_network(cluster_obj.id)
-
-            self.fuel_web.run_ostf(
-                cluster_id=cluster_obj.id)
+        self.fuel_web.run_ostf(
+            cluster_id=cluster_obj.id)
 
         if settings.CREATE_ENV:
             self.env.make_snapshot("deploy_neutron_gre_ha_public_network")
@@ -197,7 +182,8 @@ class NeutronVlanHa(TestBasic):
     @revert_snapshot("ready_with_5_slaves")
     @log_snapshot_on_error
     @cluster_template("neutron_vlan_ha")
-    def deploy_neutron_vlan_ha(self, cluster_templ):
+    @cert_script.with_cluster("neutron_vlan_ha", release=1)
+    def deploy_neutron_vlan_ha(self, cluster_obj):
         """Deploy cluster in HA mode with Neutron VLAN
 
         Scenario:
@@ -211,21 +197,20 @@ class NeutronVlanHa(TestBasic):
         Snapshot deploy_neutron_vlan_ha
 
         """
-        with cert_script.make_cluster(self.conn, cluster_templ) as cluster_obj:
-            self.fuel_web.update_internal_network(cluster_obj.id, '192.168.196.0/22',
-                                              '192.168.196.1')
-            self.fuel_web.deploy_cluster_wait(cluster_obj.id)
+        self.fuel_web.update_internal_network(cluster_obj.id, '192.168.196.0/22',
+                                          '192.168.196.1')
+        self.fuel_web.deploy_cluster_wait(cluster_obj.id)
 
-            cluster = self.fuel_web.client.get_cluster(cluster_obj.id)
-            assert_equal(str(cluster['net_provider']), 'neutron')
-            # assert_equal(str(cluster['net_segment_type']), segment_type)
-            self.fuel_web.check_fixed_network_cidr(
-                cluster_id, self.env.get_ssh_to_remote_by_name('slave-01'))
+        cluster = self.fuel_web.client.get_cluster(cluster_obj.id)
+        assert_equal(str(cluster['net_provider']), 'neutron')
+        # assert_equal(str(cluster['net_segment_type']), segment_type)
+        self.fuel_web.check_fixed_network_cidr(
+            cluster_id, self.env.get_ssh_to_remote_by_name('slave-01'))
 
-            self.fuel_web.verify_network(cluster_obj.id)
+        self.fuel_web.verify_network(cluster_obj.id)
 
-            self.fuel_web.run_ostf(
-                cluster_id=cluster_obj.id)
+        self.fuel_web.run_ostf(
+            cluster_id=cluster_obj.id)
 
         if settings.CREATE_ENV:
             self.env.make_snapshot("deploy_neutron_vlan_ha")
@@ -239,7 +224,8 @@ class NeutronVlanHaPublicNetwork(TestBasic):
     @revert_snapshot("ready_with_5_slaves")
     @log_snapshot_on_error
     @cluster_template("neutron_vlan_ha_public_networks")
-    def deploy_neutron_vlan_ha_with_public_network(self, cluster_templ):
+    @cert_script.with_cluster("neutron_vlan_ha_public_networks", release=1)
+    def deploy_neutron_vlan_ha_with_public_network(self, cluster_obj):
         """Deploy cluster in HA mode with Neutron VLAN and public network
            assigned to all nodes
 
@@ -257,21 +243,16 @@ class NeutronVlanHaPublicNetwork(TestBasic):
 
 
         """
-        with cert_script.make_cluster(self.conn, cluster_templ) as cluster_obj:
-            self.fuel_web.update_internal_network(cluster_obj.id, '192.168.196.0/22',
-                                                  '192.168.196.1')
-            self.fuel_web.deploy_cluster_wait(cluster_obj.id)
+        cluster = self.fuel_web.client.get_cluster(cluster_obj.id)
+        assert_equal(str(cluster['net_provider']), 'neutron')
+        # assert_equal(str(cluster['net_segment_type']), segment_type)
+        self.fuel_web.check_fixed_network_cidr(
+            cluster_obj.id, self.env.get_ssh_to_remote_by_name('slave-01'))
 
-            cluster = self.fuel_web.client.get_cluster(cluster_obj.id)
-            assert_equal(str(cluster['net_provider']), 'neutron')
-            # assert_equal(str(cluster['net_segment_type']), segment_type)
-            self.fuel_web.check_fixed_network_cidr(
-                cluster_obj.id, self.env.get_ssh_to_remote_by_name('slave-01'))
+        self.fuel_web.verify_network(cluster_obj.id)
 
-            self.fuel_web.verify_network(cluster_obj.id)
-
-            self.fuel_web.run_ostf(
-                cluster_id=cluster_obj.id)
+        self.fuel_web.run_ostf(
+            cluster_id=cluster_obj.id)
 
         if settings.CREATE_ENV:
             self.env.make_snapshot("deploy_neutron_vlan_ha_public_network")

@@ -331,14 +331,14 @@ class SimpleVlan(TestBasic):
         with cert_script.make_cluster(self.conn, cluster_templ) as cluster_obj:
             self.fuel_web.update_vlan_network_fixed(
                 cluster_id, amount=8, network_size=32)
-            self.fuel_web.deploy_cluster_wait(cluster_id)
+            self.fuel_web.deploy_cluster_wait(cluster_obj.id)
             self.fuel_web.assert_cluster_ready(
                 'slave-01', smiles_count=6, networks_count=8, timeout=300)
 
-            self.fuel_web.verify_network(cluster_id)
+            self.fuel_web.verify_network(cluster_obj.id)
 
             self.fuel_web.run_ostf(
-                cluster_id=cluster_id)
+                cluster_id=cluster_obj.id)
 
         if settings.CREATE_ENV:
             self.env.make_snapshot("deploy_simple_vlan", is_make=True)
