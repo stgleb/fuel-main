@@ -14,6 +14,7 @@
 
 from proboscis.asserts import assert_equal
 from proboscis import test
+from fuelweb_test import settings
 
 from fuelweb_test.helpers.decorators import log_snapshot_on_error
 from fuelweb_test.settings import DEPLOYMENT_MODE_HA
@@ -33,7 +34,6 @@ class NeutronGre(TestBasic):
           groups=["deploy_neutron_gre", "simple_neutron_gre", "gleb"])
     @revert_snapshot("ready_with_3_slaves")
     @log_snapshot_on_error
-    # @cluster_template("neutron_simple_gre")
     @cert_script.with_cluster("neutron_simple_gre", release=1)
     def deploy_neutron_gre(self, cluster_obj):
         """Deploy cluster in simple mode with Neutron GRE
@@ -95,9 +95,7 @@ class NeutronVlan(TestBasic):
         self.fuel_web.verify_network(cluster_obj.id)
 
         self.fuel_web.run_ostf(
-            cluster_id=cluster_obj.id)
-
-
+            cluster_id=cluster_obj.id)        
 
 @test(groups=["thread_4", "neutron", "ha", "ha_neutron", "gleb"])
 class NeutronGreHa(TestBasic):
@@ -140,7 +138,7 @@ class NeutronGreHaPublicNetwork(TestBasic):
 
     @test(depends_on=[SetupEnvironment.prepare_slaves_5],
           groups=["deploy_neutron_gre_ha_public_network"])
-    @revert_snapshot("ready_with_3_slaves")
+    @revert_snapshot("ready_with_5_slaves")
     @log_snapshot_on_error
     @cluster_template("neutron_gre_ha_public_networks")
     @cert_script.with_cluster("neutron_gre_ha_public_networks", release=1)

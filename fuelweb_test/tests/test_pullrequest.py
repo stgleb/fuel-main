@@ -21,18 +21,25 @@ from fuelweb_test.settings import OPENSTACK_RELEASE
 from fuelweb_test.settings import OPENSTACK_RELEASE_REDHAT
 from fuelweb_test.tests.base_test_case import SetupEnvironment
 from fuelweb_test.tests.base_test_case import TestBasic
+from fuelweb_test import logger, settings
 
+from fuelweb_test.tests.base_test_case import revert_snapshot
+from fuelweb_test.tests.base_test_case import bootstrap_nodes
+from fuelweb_test.tests.base_test_case import cluster_template
+from certification_script import cert_script
 
-@test(groups=["test_pullrequest"])
+@test(groups=["pullrequest"])
 class TestPullRequest(TestBasic):
-    @test(depends_on=[SetupEnvironment.prepare_slaves_3],
-          groups=["deploy_pr_ha"])
+    @test(depends_on=[SetupEnvironment.prepare_release],
+          groups=["pullrequest"])
     @log_snapshot_on_error
-    def deploy_pr_ha(self):
+    @revert_snapshot("ready_with_3_slaves")
+    @cert_script.with_cluster("simple1", release=1)
+    def deploy_pr_ha(self, cluster):
         """Deploy cluster in HA mode with Neutron GRE
 
         Scenario:
-            1. Create cluster
+            1. Create cluster with gre
             2. Add 1 node with controller role
             3. Add 1 node with compute role
             4. Deploy the cluster
@@ -41,33 +48,8 @@ class TestPullRequest(TestBasic):
         Snapshot: deploy_pr_ha
 
         """
+
         if OPENSTACK_RELEASE == OPENSTACK_RELEASE_REDHAT:
             raise SkipTest()
 
-        self.env.revert_snapshot("ready_with_3_slaves")
-
-        settings = None
-
-        if NEUTRON_ENABLE:
-            settings = {
-                "net_provider": 'neutron',
-                "net_segment_type": "gre"
-            }
-
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=DEPLOYMENT_MODE,
-            settings=settings
-        )
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-01': ['controller'],
-                'slave-02': ['compute'],
-            }
-        )
-
-        self.fuel_web.deploy_cluster_wait(cluster_id, is_feature=True)
-        self.fuel_web.run_ostf(
-            cluster_id=self.fuel_web.get_last_created_cluster()
-        )
+        self.fuel_web.run_ostf(cluster_id=cluster.id)

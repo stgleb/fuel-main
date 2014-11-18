@@ -27,6 +27,12 @@ from fuelweb_test import settings
 from fuelweb_test import logger as LOGGER
 from fuelweb_test.tests.base_test_case import SetupEnvironment
 from fuelweb_test.tests.base_test_case import TestBasic
+from fuelweb_test import logger, settings
+
+from fuelweb_test.tests.base_test_case import revert_snapshot
+from fuelweb_test.tests.base_test_case import bootstrap_nodes
+from fuelweb_test.tests.base_test_case import cluster_template
+from certification_script import cert_script
 
 
 @test(groups=["services", "services.sahara", "services_simple"])
@@ -673,10 +679,10 @@ class CeilometerHAMongo(CeilometerOSTFTestsRun):
         self.run_tests(cluster_id)
         self.env.make_snapshot("deploy_ceilometer_ha_with_mongo")
 
-    @test(depends_on=[SetupEnvironment.prepare_slaves_5],
-          groups=["deploy_ceilometer_ha_multirole"])
+    @test(groups=["deploy_ceilometer_ha_multirole"])
     @log_snapshot_on_error
-    def deploy_ceilometer_ha_multirole(self):
+    @cluster_template("ceilmultirole")
+    def deploy_ceilometer_ha_multirole(self, cluster_templ):
         """Deploy cluster in ha multirole mode with Ceilometer
 
         Scenario:
@@ -691,33 +697,20 @@ class CeilometerHAMongo(CeilometerOSTFTestsRun):
         Snapshot: deploy_ceilometer_ha_multirole
 
         """
-        self.env.revert_snapshot("ready_with_5_slaves")
+        if not cluster_templ.get('release'):
+            cluster_templ['release'] = 1
 
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=settings.DEPLOYMENT_MODE_HA,
-            settings={
-                'ceilometer': True
-            }
-        )
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-01': ['controller', 'mongo'],
-                'slave-02': ['controller', 'mongo'],
-                'slave-03': ['controller', 'mongo'],
-                'slave-04': ['compute'],
-                'slave-05': ['cinder']
-            }
-        )
-        self.fuel_web.deploy_cluster_wait(cluster_id)
+        with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
+            node = cluster.nodes.controller[0]
 
-        checkers.verify_service(
-            self.env.get_ssh_to_remote_by_name("slave-01"),
-            service_name='ceilometer-api')
+            cluster_id=cluster.id
 
-        self.run_tests(cluster_id)
-        self.env.make_snapshot("deploy_ceilometer_ha_mulirole")
+            checkers.verify_service(
+                self.env.get_ssh_to_remote(node.get_ip),
+                service_name='ceilometer-api')
+
+            self.run_tests(cluster_id)
+
 
 
 @test(groups=["services", "services.heat", "services_simple"])
