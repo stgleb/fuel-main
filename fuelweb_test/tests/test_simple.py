@@ -202,7 +202,7 @@ class SimpleFlat(TestBasic):
         if not cluster_templ.get('release'):
             cluster_templ['release'] = 1
         with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
-            cluster_id=cluster.id
+            cluster_id = cluster.id
             node = cluster.nodes.controller[0]
             ip = node.get_ip()
             self.fuel_web.assert_cluster_ready(node.name, ip=ip,
@@ -472,6 +472,9 @@ class SimpleCinder(TestBasic):
         Snapshot: deploy_simple_cinder
 
         """
+        if settings.CREATE_ENV:
+            self.env.revert_snapshot("ready_with_3_slaves")
+
         if not cluster_templ.get('release'):
             cluster_templ['release'] = 1
         cluster_templ['deployment_mode']=DEPLOYMENT_MODE_SIMPLE
@@ -506,7 +509,8 @@ class NodeMultipleInterfaces(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
           groups=["deploy_node_multiple_interfaces"])
     @log_snapshot_on_error
-    def deploy_node_multiple_interfaces(self):
+    @cluster_template("multiinterf")
+    def deploy_node_multiple_interfaces(self, cluster_templ):
         """Deploy cluster with networks allocated on different interfaces
 
         Scenario:
@@ -522,38 +526,21 @@ class NodeMultipleInterfaces(TestBasic):
         Snapshot: deploy_node_multiple_interfaces
 
         """
-        self.env.revert_snapshot("ready_with_3_slaves")
+        if settings.CREATE_ENV:
+            self.env.revert_snapshot("ready_with_3_slaves")
 
-        interfaces_dict = {
-            'eth1': ['public'],
-            'eth2': ['storage'],
-            'eth3': ['fixed'],
-            'eth4': ['management'],
-        }
+        if not cluster_templ.get('release'):
+            cluster_templ['release'] = 1
+        cluster_templ['deployment_mode']=DEPLOYMENT_MODE_SIMPLE
 
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=DEPLOYMENT_MODE_SIMPLE
-        )
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-01': ['controller'],
-                'slave-02': ['compute'],
-                'slave-03': ['cinder']
-            }
-        )
-        nailgun_nodes = self.fuel_web.client.list_cluster_nodes(cluster_id)
-        for node in nailgun_nodes:
-            self.fuel_web.update_node_networks(node['id'], interfaces_dict)
+        with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
+            self.fuel_web.verify_network(cluster.id)
+            for node in ['node1', 'node2']:
+                self.env.verify_network_configuration(node)
 
-        self.fuel_web.deploy_cluster_wait(cluster_id)
-        for node in ['slave-01', 'slave-02', 'slave-03']:
-            self.env.verify_network_configuration(node)
 
-        self.fuel_web.verify_network(cluster_id)
-
-        self.env.make_snapshot("deploy_node_multiple_interfaces")
+        if settings.CREATE_ENV:
+           self.env.make_snapshot("deploy_node_multiple_interfaces")
 
 
 @test(groups=["thread_1"])

@@ -1,0 +1,68 @@
+name: multiinterf
+
+
+nodes:
+    node1:
+      roles:
+        - "controller"
+      interfaces:
+        - eth1:
+            - "public"
+        - eth2:
+            - "storage"
+          eth3:
+            - "fixed"
+        - eth4:
+            - "management"
+
+    node2:
+      roles:
+        - "compute"
+      interfaces:
+        - eth1:
+            - "public"
+        - eth2:
+            - "storage"
+          eth3:
+            - "fixed"
+        - eth4:
+            - "management"
+
+nodes:
+    node1:
+      roles:
+        - "controller"
+      interfaces:
+        - eth1:
+            - "public"
+        - eth2:
+            - "storage"
+          eth3:
+            - "fixed"
+        - eth2:
+            - "management"
+
+    node2:
+      roles:
+        - "cinder"
+      interfaces:
+        - eth1:
+            - "public"
+        - eth2:
+            - "storage"
+          eth3:
+            - "fixed"
+        - eth4:
+            - "management"
+
+
+timeout: 3600
+settings:
+    net_provider: nova_network
+network_configuration:
+  networks:
+    public:
+      ip_ranges:
+        - [172.18.202.2, 172.18.202.15]
+      cidr: 172.18.202.0/26
+      gateway: 172.18.202.1
