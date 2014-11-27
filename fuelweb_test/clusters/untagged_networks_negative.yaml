@@ -1,0 +1,49 @@
+name: deploy_node_multiple_interfaces
+
+nodes:
+    node1:
+      roles:
+        - "controller"
+
+      interfaces:
+          eth0:
+            networks:
+              - fixed
+          eth1:
+            networks:
+              - public
+          eth2:
+            networks:
+              - management
+              - storage
+          eth3:
+            networks:
+    node2:
+      roles:
+        - "compute"
+      interfaces:
+          eth0:
+            networks:
+              - fixed
+          eth1:
+            networks:
+              - public
+          eth2:
+            networks:
+              - management
+              - storage
+          eth3:
+            networks:
+
+timeout: 3600
+settings:
+    net_provider: nova_network
+network_configuration:
+  networks:
+    public:
+      ip_ranges:
+        - [172.18.202.2, 172.18.202.15]
+      cidr: 172.18.202.0/26
+      gateway: 172.18.202.1
+  networking_parameters:
+    fixed_networks_cidr: '10.1.0.0/24'

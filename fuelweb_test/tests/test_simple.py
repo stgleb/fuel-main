@@ -472,9 +472,6 @@ class SimpleCinder(TestBasic):
         Snapshot: deploy_simple_cinder
 
         """
-        if settings.CREATE_ENV:
-            self.env.revert_snapshot("ready_with_3_slaves")
-
         if not cluster_templ.get('release'):
             cluster_templ['release'] = 1
         cluster_templ['deployment_mode']=DEPLOYMENT_MODE_SIMPLE
@@ -502,15 +499,15 @@ class SimpleCinder(TestBasic):
             self.env.make_snapshot("deploy_simple_cinder")
 
 
-
-
-@test(groups=["thread_1"])
+@test(groups=["thread_1", "gleb4"])
 class NodeMultipleInterfaces(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
           groups=["deploy_node_multiple_interfaces"])
     @log_snapshot_on_error
-    @cluster_template("multiinterf")
-    def deploy_node_multiple_interfaces(self, cluster_templ):
+    @revert_snapshot("ready_with_3_slaves")
+    @cluster_template("deploy_node_multiple_interfaces")
+    @cert_script.with_cluster("deploy_node_multiple_interfaces", release=1)
+    def deploy_node_multiple_interfaces(self, cluster_obj):
         """Deploy cluster with networks allocated on different interfaces
 
         Scenario:
@@ -526,21 +523,14 @@ class NodeMultipleInterfaces(TestBasic):
         Snapshot: deploy_node_multiple_interfaces
 
         """
-        if settings.CREATE_ENV:
-            self.env.revert_snapshot("ready_with_3_slaves")
+        cluster = self.fuel_web.client.get_cluster(cluster_obj.id)
+        for node in cluster.nodes:
+            self.env.verify_network_configuration(node)
 
-        if not cluster_templ.get('release'):
-            cluster_templ['release'] = 1
-        cluster_templ['deployment_mode']=DEPLOYMENT_MODE_SIMPLE
-
-        with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
-            self.fuel_web.verify_network(cluster.id)
-            for node in ['node1', 'node2']:
-                self.env.verify_network_configuration(node)
-
+        self.fuel_web.verify_network(cluster.id)
 
         if settings.CREATE_ENV:
-           self.env.make_snapshot("deploy_node_multiple_interfaces")
+            self.env.make_snapshot("deploy_node_multiple_interfaces")
 
 
 @test(groups=["thread_1"])
@@ -728,14 +718,16 @@ class DeleteEnvironment(TestBasic):
         )
 
 
-@test(groups=["thread_1"])
+@test(groups=["thread_1", "gleb"])
 class UntaggedNetworksNegative(TestBasic):
     @test(
         depends_on=[SetupEnvironment.prepare_slaves_3],
         groups=["untagged_networks_negative"],
         enabled=False)
     @log_snapshot_on_error
-    def untagged_networks_negative(self):
+    @cluster_template("untagged_networks_negative")
+    @cert_script.with_cluster("untagged_networks_negative", release=1)
+    def untagged_networks_negative(self, cluster_obj):
         """Verify network verification fails with untagged network on eth0
 
         Scenario:
@@ -748,43 +740,19 @@ class UntaggedNetworksNegative(TestBasic):
             7. Start cluster deployment (assert it fails)
 
         """
-        self.env.revert_snapshot("ready_with_3_slaves")
-
         vlan_turn_off = {'vlan_start': None}
-        interfaces = {
-            'eth0': ["fixed"],
-            'eth1': ["public"],
-            'eth2': ["management", "storage"],
-            'eth3': []
-        }
-
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-        )
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-01': ['controller'],
-                'slave-02': ['compute']
-            }
-        )
-
-        nets = self.fuel_web.client.get_networks(cluster_id)['networks']
-        nailgun_nodes = self.fuel_web.client.list_cluster_nodes(cluster_id)
-        for node in nailgun_nodes:
-            self.fuel_web.update_node_networks(node['id'], interfaces)
-
+        nets = self.fuel_web.client.get_networks(cluster_obj.id)['networks']
         # select networks that will be untagged:
         [net.update(vlan_turn_off) for net in nets]
 
         # stop using VLANs:
-        self.fuel_web.client.update_network(cluster_id, networks=nets)
+        self.fuel_web.client.update_network(cluster_obj.id, networks=nets)
 
         # run network check:
-        self.fuel_web.verify_network(cluster_id, success=False)
+        self.fuel_web.verify_network(cluster_obj.id, success=False)
 
         # deploy cluster:
-        task = self.fuel_web.deploy_cluster(cluster_id)
+        task = self.fuel_web.deploy_cluster(cluster_obj.id)
         self.fuel_web.assert_task_failed(task)
 
 
