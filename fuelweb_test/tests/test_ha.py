@@ -24,14 +24,22 @@ from fuelweb_test.settings import DEPLOYMENT_MODE_HA
 from fuelweb_test.tests.base_test_case import SetupEnvironment
 from fuelweb_test.tests.base_test_case import TestBasic
 
+from fuelweb_test.tests.base_test_case import revert_snapshot
+from fuelweb_test.tests.base_test_case import bootstrap_nodes
+from fuelweb_test.tests.base_test_case import cluster_template
+from certification_script import cert_script
+
 
 @test(groups=["thread_3", "ha", "bvt_2"])
 class TestHaVLAN(TestBasic):
 
-    @test(depends_on=[SetupEnvironment.prepare_slaves_5],
+    @test(depends_on=[SetupEnvironment.prepare_slaves_3],
           groups=["deploy_ha_vlan", "ha_nova_vlan"])
+    @revert_snapshot("ready_with_5_slaves")
     @log_snapshot_on_error
-    def deploy_ha_vlan(self):
+    @cluster_template("nova_ha_vlan")
+    @cert_script.with_cluster("nova_ha_vlan", release=1)
+    def deploy_ha_vlan(self, cluster):
         """Deploy cluster in HA mode with VLAN Manager
 
         Scenario:
@@ -49,27 +57,8 @@ class TestHaVLAN(TestBasic):
         Snapshot deploy_ha_vlan
 
         """
-        self.env.revert_snapshot("ready_with_5_slaves")
+        cluster_id = cluster.id
 
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=DEPLOYMENT_MODE_HA,
-            settings={
-                'tenant': 'novaHAVlan',
-                'user': 'novaHAVlan',
-                'password': 'novaHAVlan'
-            }
-        )
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-01': ['controller'],
-                'slave-02': ['controller'],
-                'slave-03': ['controller'],
-                'slave-04': ['compute'],
-                'slave-05': ['compute']
-            }
-        )
         self.fuel_web.update_vlan_network_fixed(
             cluster_id, amount=8, network_size=32
         )
@@ -94,7 +83,11 @@ class TestHaFlat(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_5],
           groups=["deploy_ha_flat", "ha_nova_flat"])
     @log_snapshot_on_error
-    def deploy_ha_flat(self):
+    @revert_snapshot("ready_with_5_slaves")
+    @log_snapshot_on_error
+    @cluster_template("nova_ha_flat")
+    @cert_script.with_cluster("nova_ha_flat", release=1)
+    def deploy_ha_flat(self, cluster):
         """Deploy cluster in HA mode with flat nova-network
 
         Scenario:
@@ -111,27 +104,6 @@ class TestHaFlat(TestBasic):
         Snapshot deploy_ha_flat
 
         """
-        self.env.revert_snapshot("ready_with_5_slaves")
-
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=DEPLOYMENT_MODE_HA,
-            settings={
-                'tenant': 'novaHaFlat',
-                'user': 'novaHaFlat',
-                'password': 'novaHaFlat'
-            }
-        )
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-01': ['controller'],
-                'slave-02': ['controller'],
-                'slave-03': ['controller'],
-                'slave-04': ['compute'],
-                'slave-05': ['compute']
-            }
-        )
         self.fuel_web.deploy_cluster_wait(cluster_id)
         self.fuel_web.assert_cluster_ready(
             'slave-01', smiles_count=16, networks_count=1, timeout=300)
@@ -145,13 +117,16 @@ class TestHaFlat(TestBasic):
         self.env.make_snapshot("deploy_ha_flat")
 
 
-@test(groups=["thread_4", "ha"])
+@test(groups=["thread_4", "ha", "gleb8"])
 class TestHaFlatAddCompute(TestBasic):
 
     @test(depends_on=[SetupEnvironment.prepare_slaves_5],
           groups=["ha_flat_add_compute"])
     @log_snapshot_on_error
-    def ha_flat_add_compute(self):
+    @revert_snapshot("ready_with_3_slaves")
+    @cluster_template("test_ha_flat_add_compute")
+    @cert_script.with_cluster("test_ha_flat_add_compute", release=1)
+    def ha_flat_add_compute(self, cluster):
         """Add compute node to cluster in HA mode with flat nova-network
 
         Scenario:
@@ -169,29 +144,14 @@ class TestHaFlatAddCompute(TestBasic):
         Snapshot ha_flat_add_compute
 
         """
-        self.env.revert_snapshot("ready_with_5_slaves")
-
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=DEPLOYMENT_MODE_HA
-        )
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-01': ['controller'],
-                'slave-02': ['controller'],
-                'slave-03': ['controller'],
-                'slave-04': ['compute'],
-                'slave-05': ['compute']
-            }
-        )
+        cluster_id = cluster.id
         self.fuel_web.deploy_cluster_wait(cluster_id)
         self.fuel_web.assert_cluster_ready(
             'slave-01', smiles_count=16, networks_count=1, timeout=300)
 
         self.env.bootstrap_nodes(self.env.nodes().slaves[5:6])
         self.fuel_web.update_nodes(
-            cluster_id, {'slave-06': ['compute']}, True, False
+            cluster_id, {'slave-03': ['compute']}, True, False
         )
         self.fuel_web.deploy_cluster_wait(cluster_id)
 
@@ -204,12 +164,15 @@ class TestHaFlatAddCompute(TestBasic):
         self.env.make_snapshot("ha_flat_add_compute")
 
 
-@test(groups=["thread_4", "ha"])
+@test(groups=["thread_4", "ha", "gleb8"])
 class TestHaFlatScalability(TestBasic):
 
     @test(depends_on=[SetupEnvironment.prepare_slaves_5],
           groups=["ha_flat_scalability", "ha_nova_flat_scalability"])
     @log_snapshot_on_error
+    @revert_snapshot("ready_with_3_slaves")
+    @cluster_template("ha_flat_scalability")
+    @cert_script.with_cluster("ha_flat_scalability", release=1)
     def ha_flat_scalability(self):
         """Check HA mode on scalability
 
@@ -228,18 +191,6 @@ class TestHaFlatScalability(TestBasic):
         Snapshot ha_flat_scalability
 
         """
-        self.env.revert_snapshot("ready_with_5_slaves")
-
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=DEPLOYMENT_MODE_HA
-        )
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-01': ['controller']
-            }
-        )
         self.fuel_web.deploy_cluster_wait(cluster_id)
 
         self.fuel_web.update_nodes(
@@ -273,7 +224,7 @@ class TestHaFlatScalability(TestBasic):
         self.env.make_snapshot("ha_flat_scalability")
 
 
-@test(groups=["known_issues", "ha"])
+@test(groups=["known_issues", "ha", "gleb8"])
 class BackupRestoreHa(TestBasic):
 
     @test(depends_on=[TestHaFlat.deploy_ha_flat],

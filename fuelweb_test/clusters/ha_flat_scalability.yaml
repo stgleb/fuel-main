@@ -1,0 +1,26 @@
+name: ha_flat_scalability
+release: 1
+deployment_mode: "ha_compact"
+
+nodes:
+    node1:
+      roles:
+        - "controller"
+
+timeout: 3600
+settings:
+    net_provider: nova_network
+    net_segment_type: vlan
+
+network_configuration:
+  networks:
+    public:
+      ip_ranges:
+        - [172.18.202.2, 172.18.202.15]
+      cidr: 172.18.202.0/26
+      gateway: 172.18.202.1
+  networking_parameters:
+    internal_cidr: 192.168.196.0/22
+    internal_gateway : 192.168.196.1
+    floating_ranges:
+      - [172.18.202.16, 172.18.202.21]
