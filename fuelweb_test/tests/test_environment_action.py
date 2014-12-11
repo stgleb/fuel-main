@@ -20,9 +20,14 @@ from certification_script import cert_script
 
 from fuelweb_test.helpers.decorators import log_snapshot_on_error
 from fuelweb_test import settings as hlp_data
-from fuelweb_test import logger
+from fuelweb_test import logger, settings
 from fuelweb_test.tests import base_test_case
+from fuelweb_test.tests.base_test_case import revert_snapshot
+from fuelweb_test.tests.base_test_case import bootstrap_nodes
 from fuelweb_test.tests.base_test_case import cluster_template
+from certification_script import cert_script
+from fuelweb_test.settings import DEPLOYMENT_MODE_SIMPLE
+
 
 
 @test(groups=["thread_2", "cluster_actions"])
@@ -31,8 +36,8 @@ class EnvironmentAction(base_test_case.TestBasic):
     @test(depends_on=[base_test_case.SetupEnvironment.prepare_slaves_3],
           groups=["smoke", "deploy_flat_stop_reset_on_deploying"])
     @log_snapshot_on_error
-    @cluster_template("simple1")
-    def deploy_flat_stop_on_deploying(self, cluster_template):
+    @cluster_template("flat")
+    def deploy_flat_stop_on_deploying(self, cluster_templ):
         """Stop reset cluster in simple mode with flat nova-network
 
         Scenario:
@@ -49,7 +54,11 @@ class EnvironmentAction(base_test_case.TestBasic):
         Snapshot: deploy_flat_stop_reset_on_deploying
 
         """
-        self.env.revert_snapshot("ready_with_3_slaves")
+        if settings.CREATE_ENV:
+            self.env.revert_snapshot("ready_with_3_slaves")
+
+	    if not cluster_templ.get('release'):
+             cluster_templ['release'] = 1
 
         access = {
             'tenant': 'stop_deploy',
@@ -57,36 +66,38 @@ class EnvironmentAction(base_test_case.TestBasic):
             'password': 'stop_deploy'
 
         }
-        cluster_template['settings'].update(access)
-        cluster_template['deployment_mode'] = 'multinode'
+        cluster_templ['settings'].update(access)
+        cluster_templ['deployment_mode'] = 'multinode'
 
-        with cert_script.make_cluster(self.conn, cluster_template) as cluster:
+        with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
             self.fuel_web.stop_deployment_wait(cluster.id)
+            cluster_id=cluster.id
             nodes = cluster.nodes
             self.fuel_web.wait_nodes_get_online_state(nodes,
                                                       nailgun_nodes=True)
 
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-03': ['cinder']
-            }
-        )
+            self.fuel_web.update_nodes(
+                cluster_id,
+                {
+                    'slave-03': ['cinder']
+                }
+            )
 
-        self.fuel_web.deploy_cluster_wait(cluster_id)
+            self.fuel_web.deploy_cluster_wait(cluster_id)
 
-        asserts.assert_equal(
-            3, len(self.fuel_web.client.list_cluster_nodes(cluster_id)))
+            asserts.assert_equal(
+                3, len(self.fuel_web.client.list_cluster_nodes(cluster_id)))
 
-        self.fuel_web.run_ostf(
-            cluster_id=cluster_id)
-
-        self.env.make_snapshot("deploy_flat_stop_reset_on_deploying")
+            self.fuel_web.run_ostf(
+                cluster_id=cluster_id)
+        if settings.CREATE_ENV:
+            self.env.make_snapshot("deploy_flat_stop_reset_on_deploying")
 
     @test(depends_on=[base_test_case.SetupEnvironment.prepare_slaves_3],
           groups=["smoke", "deploy_flat_stop_reset_on_provisioning"])
     @log_snapshot_on_error
-    def deploy_flat_stop_reset_on_provisioning(self):
+    @cluster_template("flat")
+    def deploy_flat_stop_reset_on_provisioning(self, cluster_templ):
         """Stop reset cluster in simple mode with flat nova-network
 
         Scenario:
@@ -103,49 +114,48 @@ class EnvironmentAction(base_test_case.TestBasic):
         Snapshot: deploy_flat_stop_reset_on_deploying
 
         """
-        self.env.revert_snapshot("ready_with_3_slaves")
+        if settings.CREATE_ENV:
+            self.env.revert_snapshot("ready_with_3_slaves")
 
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=hlp_data.DEPLOYMENT_MODE_SIMPLE
-        )
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-01': ['controller'],
-                'slave-02': ['compute']
-            }
-        )
+        if not cluster_templ.get('release'):
+            cluster_templ['release'] = 1
 
-        self.fuel_web.provisioning_cluster_wait(
-            cluster_id=cluster_id, progress=20)
-        try:
-            self.fuel_web.stop_deployment_wait(cluster_id)
-        except Exception:
-            logger.debug(traceback.format_exc())
+        cluster_templ['deployment_mode']=DEPLOYMENT_MODE_SIMPLE
 
-        self.fuel_web.wait_nodes_get_online_state(self.env.nodes().slaves[:2])
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-03': ['cinder']
-            }
-        )
+        with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
 
-        self.fuel_web.deploy_cluster_wait(cluster_id)
 
-        asserts.assert_equal(
-            3, len(self.fuel_web.client.list_cluster_nodes(cluster_id)))
 
-        self.fuel_web.run_ostf(
-            cluster_id=cluster_id)
+            self.fuel_web.provisioning_cluster_wait(
+                cluster_id=cluster.id, progress=20)
+            try:
+                self.fuel_web.stop_deployment_wait(cluster_id)
+            except Exception:
+                logger.debug(traceback.format_exc())
 
-        self.env.make_snapshot("deploy_flat_stop_reset_on_provisioning")
+            self.fuel_web.wait_nodes_get_online_state(self.env.nodes().slaves[:2])
+            self.fuel_web.update_nodes(
+                cluster_id,
+                {
+                    'slave-03': ['cinder']
+                }
+            )
+
+
+
+            asserts.assert_equal(
+                3, len(self.fuel_web.client.list_cluster_nodes(cluster_id)))
+
+            self.fuel_web.run_ostf(
+                cluster_id=cluster_id)
+        if settings.CREATE_ENV:
+            self.env.make_snapshot("deploy_flat_stop_reset_on_provisioning")
 
     @test(depends_on=[base_test_case.SetupEnvironment.prepare_slaves_3],
           groups=["smoke", "deploy_reset_on_ready"])
+    @cluster_template("flat")
     @log_snapshot_on_error
-    def deploy_reset_on_ready(self):
+    def deploy_reset_on_ready(self, cluster_templ):
         """Stop reset cluster in simple mode
 
         Scenario:
@@ -161,39 +171,35 @@ class EnvironmentAction(base_test_case.TestBasic):
         Snapshot: deploy_reset_on_ready
 
         """
-        self.env.revert_snapshot("ready_with_3_slaves")
+        if settings.CREATE_ENV:
+            self.env.revert_snapshot("ready_with_3_slaves")
 
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=hlp_data.DEPLOYMENT_MODE_SIMPLE
-        )
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-01': ['controller'],
-                'slave-02': ['compute']
-            }
-        )
+        if not cluster_templ.get('release'):
+            cluster_templ['release'] = 1
 
-        self.fuel_web.deploy_cluster_wait(cluster_id)
-        self.fuel_web.assert_cluster_ready(
-            'slave-01', smiles_count=6, networks_count=1, timeout=300)
+        with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
 
-        self.fuel_web.stop_reset_env_wait(cluster_id)
-        self.fuel_web.wait_nodes_get_online_state(self.env.nodes().slaves[:2])
+            cluster_id = cluster.id
+            node = cluster.nodes.controller[0]
+            self.fuel_web.assert_cluster_ready(
+                node.name, smiles_count=6, networks_count=1, timeout=300)
 
-        self.fuel_web.update_vlan_network_fixed(
-            cluster_id, amount=8, network_size=32)
-        self.fuel_web.deploy_cluster_wait(cluster_id)
-        self.fuel_web.assert_cluster_ready(
-            'slave-01', smiles_count=6, networks_count=8, timeout=300)
+            self.fuel_web.stop_reset_env_wait(cluster_id)
+            self.fuel_web.wait_nodes_get_online_state(self.env.nodes().slaves[:2])
 
-        self.fuel_web.verify_network(cluster_id)
+            self.fuel_web.update_vlan_network_fixed(
+                cluster_id, amount=8, network_size=32)
+            self.fuel_web.deploy_cluster_wait(cluster_id)
+            self.fuel_web.assert_cluster_ready(
+                node.name, smiles_count=6, networks_count=8, timeout=300)
 
-        self.fuel_web.run_ostf(
-            cluster_id=cluster_id)
+            self.fuel_web.verify_network(cluster_id)
 
-        self.env.make_snapshot("deploy_reset_on_ready")
+            self.fuel_web.run_ostf(
+                cluster_id=cluster_id)
+
+        if settings.CREATE_ENV:
+            self.env.make_snapshot("deploy_reset_on_ready")
 
 
 @test(groups=["thread_3", "cluster_actions"])
@@ -202,7 +208,8 @@ class EnvironmentActionOnHA(base_test_case.TestBasic):
     @test(depends_on=[base_test_case.SetupEnvironment.prepare_slaves_5],
           groups=["smoke", "deploy_stop_reset_on_ha"])
     @log_snapshot_on_error
-    def deploy_stop_reset_on_ha(self):
+    @cluster_template("ha3controllers")
+    def deploy_stop_reset_on_ha(self, cluster_templ):
         """Stop reset cluster in ha mode
 
         Scenario:
@@ -218,41 +225,32 @@ class EnvironmentActionOnHA(base_test_case.TestBasic):
         Snapshot: deploy_stop_reset_on_ha
 
         """
-        self.env.revert_snapshot("ready_with_5_slaves")
+        if settings.CREATE_ENV:
+            self.env.revert_snapshot("ready_with_3_slaves")
 
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=hlp_data.DEPLOYMENT_MODE_HA
+        if not cluster_templ.get('release'):
+            cluster_templ['release'] = 1
 
-        )
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-01': ['controller'],
-                'slave-02': ['controller'],
-                'slave-03': ['controller']
-            }
-        )
+        with cert_script.make_cluster(self.conn, cluster_templ) as cluster:
+            self.fuel_web.deploy_cluster_wait_progress(cluster_id, progress=10)
+            self.fuel_web.stop_deployment_wait(cluster_id)
+            self.fuel_web.wait_nodes_get_online_state(self.env.nodes().slaves[:3])
+            self.fuel_web.update_nodes(
+                cluster_id,
+                {
+                    'slave-04': ['compute'],
+                    'slave-05': ['compute']
+                }
+            )
 
-        self.fuel_web.deploy_cluster_wait_progress(cluster_id, progress=10)
-        self.fuel_web.stop_deployment_wait(cluster_id)
-        self.fuel_web.wait_nodes_get_online_state(self.env.nodes().slaves[:3])
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-04': ['compute'],
-                'slave-05': ['compute']
-            }
-        )
+            self.fuel_web.deploy_cluster_wait(cluster_id)
+            self.fuel_web.assert_cluster_ready(
+                'slave-01', smiles_count=16, networks_count=1, timeout=300)
 
-        self.fuel_web.deploy_cluster_wait(cluster_id)
-        self.fuel_web.assert_cluster_ready(
-            'slave-01', smiles_count=16, networks_count=1, timeout=300)
+            self.fuel_web.verify_network(cluster_id)
 
-        self.fuel_web.verify_network(cluster_id)
-
-        self.fuel_web.run_ostf(
-            cluster_id=cluster_id,
-            test_sets=['ha', 'smoke', 'sanity'])
-
-        self.env.make_snapshot("deploy_stop_reset_on_ha")
+            self.fuel_web.run_ostf(
+                cluster_id=cluster.id,
+                test_sets=['ha', 'smoke', 'sanity'])
+            if settings.CREATE_ENV:
+                self.env.make_snapshot("deploy_stop_reset_on_ha")
