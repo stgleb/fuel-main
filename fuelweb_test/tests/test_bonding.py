@@ -24,13 +24,20 @@ from fuelweb_test.settings import OPENSTACK_RELEASE_REDHAT
 from fuelweb_test.tests.base_test_case import SetupEnvironment
 from fuelweb_test.tests.base_test_case import TestBasic
 
+from fuelweb_test.tests.base_test_case import revert_snapshot
+from fuelweb_test.tests.base_test_case import bootstrap_nodes
+from fuelweb_test.tests.base_test_case import cluster_template
+from certification_script import cert_script
+
 
 @test(groups=["bonding_simple", "bonding"])
 class BondingSimple(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
           groups=["deploy_bonding_active_backup"])
     @log_snapshot_on_error
-    def deploy_bonding_active_backup(self):
+    @revert_snapshot("ready_with_3_slaves")
+    @cert_script.with_cluster("deploy_bonding_active_backup", release=1)
+    def deploy_bonding_active_backup(self, cluster):
         """Deploy cluster in simple mode with bonding
 
         Scenario:
@@ -48,19 +55,6 @@ class BondingSimple(TestBasic):
 
         if OPENSTACK_RELEASE == OPENSTACK_RELEASE_REDHAT:
             raise SkipTest()
-
-        self.env.revert_snapshot("ready_with_3_slaves")
-
-        segment_type = 'gre'
-
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=DEPLOYMENT_MODE_SIMPLE,
-            settings={
-                "net_provider": 'neutron',
-                "net_segment_type": segment_type,
-            }
-        )
 
         self.fuel_web.update_nodes(
             cluster_id, {
@@ -92,7 +86,7 @@ class BondingSimple(TestBasic):
                 'storage'
             ]
         }
-
+        cluster_id = cluster.id
         net_params = self.fuel_web.client.get_networks(cluster_id)
 
         nailgun_nodes = self.fuel_web.client.list_cluster_nodes(cluster_id)
@@ -118,7 +112,9 @@ class BondingSimple(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
           groups=["deploy_bonding_balance_slb"])
     @log_snapshot_on_error
-    def deploy_bonding_balance_slb(self):
+    @revert_snapshot("ready_with_3_slaves")
+    @cert_script.with_cluster("deploy_bonding_balance_slb", release=1)
+    def deploy_bonding_balance_slb(self, cluster):
         """Deploy cluster in simple mode with bonding
 
         Scenario:
@@ -137,24 +133,7 @@ class BondingSimple(TestBasic):
         if OPENSTACK_RELEASE == OPENSTACK_RELEASE_REDHAT:
             raise SkipTest()
 
-        self.env.revert_snapshot("ready_with_3_slaves")
-
-        segment_type = 'vlan'
-
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=DEPLOYMENT_MODE_SIMPLE,
-            settings={
-                "net_provider": 'neutron',
-                "net_segment_type": segment_type,
-            }
-        )
-        self.fuel_web.update_nodes(
-            cluster_id, {
-                'slave-01': ['controller'],
-                'slave-02': ['compute']
-            }
-        )
+        cluster_id = cluster.id
 
         raw_data = {
             'mac': None,
@@ -209,7 +188,9 @@ class BondingHA(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_5],
           groups=["deploy_bonding_ha_active_backup"])
     @log_snapshot_on_error
-    def deploy_bonding_ha_active_backup(self):
+    @revert_snapshot("ready_with_3_slaves")
+    @cert_script.with_cluster("deploy_bonding_ha_active_backup", release=1)
+    def deploy_bonding_ha_active_backup(self, cluster):
         """Deploy cluster in HA mode with bonding
 
         Scenario:
@@ -228,8 +209,7 @@ class BondingHA(TestBasic):
         if OPENSTACK_RELEASE == OPENSTACK_RELEASE_REDHAT:
             raise SkipTest()
 
-        self.env.revert_snapshot("ready_with_5_slaves")
-
+        cluster_id = cluster.id
         segment_type = 'vlan'
 
         cluster_id = self.fuel_web.create_cluster(
@@ -298,9 +278,11 @@ class BondingHA(TestBasic):
         self.env.make_snapshot("deploy_bonding_ha_active_backup")
 
     @test(depends_on=[SetupEnvironment.prepare_slaves_5],
-          groups=["deploy_bonding_ha_balance_slb"])
+          groups=["deploy_bonding_ha_balance_slb", "bonding"])
     @log_snapshot_on_error
-    def deploy_bonding_ha_balance_slb(self):
+    @revert_snapshot("ready_with_3_slaves")
+    @cert_script.with_cluster("deploy_bonding_ha_balance_slb", release=1)
+    def deploy_bonding_ha_balance_slb(self, cluster):
         """Deploy cluster in HA mode with bonding
 
         Scenario:
@@ -319,28 +301,7 @@ class BondingHA(TestBasic):
         if OPENSTACK_RELEASE == OPENSTACK_RELEASE_REDHAT:
             raise SkipTest()
 
-        self.env.revert_snapshot("ready_with_5_slaves")
-
-        segment_type = 'gre'
-
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=DEPLOYMENT_MODE_HA,
-            settings={
-                "net_provider": 'neutron',
-                "net_segment_type": segment_type,
-            }
-        )
-        self.fuel_web.update_nodes(
-            cluster_id, {
-                'slave-01': ['controller'],
-                'slave-02': ['controller'],
-                'slave-03': ['controller'],
-                'slave-04': ['compute'],
-                'slave-05': ['compute']
-            }
-        )
-
+        cluster_id = cluster.id
         raw_data = {
             'mac': None,
             'mode': 'balance-slb',

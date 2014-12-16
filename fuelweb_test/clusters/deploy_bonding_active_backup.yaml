@@ -1,0 +1,34 @@
+name: deploy_bonding_active_backup
+deployment_mode: "multinode"
+release: 1
+
+nodes:
+    node1:
+      roles:
+        - "controller"
+
+    node2:
+      roles:
+        - "compute"
+
+
+timeout: 3600
+settings:
+    net_provider: neutron
+    net_segment_type: gre
+    tenant: simpleGre
+    user: simpleGre
+    password: simpleGre
+
+network_configuration:
+  networks:
+    public:
+      ip_ranges:
+        - [172.18.202.2, 172.18.202.15]
+      cidr: 172.18.202.0/26
+      gateway: 172.18.202.1
+  networking_parameters:
+    internal_cidr: 192.168.196.0/22
+    internal_gateway : 192.168.196.1
+    floating_ranges:
+      - [172.18.202.16, 172.18.202.21]
