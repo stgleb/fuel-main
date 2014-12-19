@@ -30,7 +30,7 @@ from fuelweb_test.tests.base_test_case import cluster_template
 from certification_script import cert_script
 
 
-@test(groups=["bonding_simple", "bonding"])
+@test(groups=["bonding_simple", "bonding1"])
 class BondingSimple(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
           groups=["deploy_bonding_active_backup"])
@@ -52,6 +52,7 @@ class BondingSimple(TestBasic):
         Snapshot deploy_bonding_active_backup
 
         """
+        cluster_id = cluster.id
 
         if OPENSTACK_RELEASE == OPENSTACK_RELEASE_REDHAT:
             raise SkipTest()
