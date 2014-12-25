@@ -1,0 +1,26 @@
+name: check_nodes_disks
+deployment_mode: "multinode"
+
+nodes:
+    node1:
+      roles:
+        - "controller"
+
+    node2:
+      roles:
+        - "controller"
+
+    node3:
+      roles:
+        - "controller"
+
+timeout: 3600
+settings:
+    net_provider: nova_network
+network_configuration:
+  networks:
+    public:
+      ip_ranges:
+        - [172.18.202.2, 172.18.202.15]
+      cidr: 172.18.202.0/26
+      gateway: 172.18.202.1

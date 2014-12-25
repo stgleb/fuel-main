@@ -575,8 +575,11 @@ class NodeDiskSizes(TestBasic):
 
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
           groups=["check_nodes_disks"])
+    @revert_snapshot("ready_with_3_slaves")
+    @cluster_template("check_nodes_disks")
+    @cert_script.with_cluster("check_nodes_disks", release=1)
     @log_snapshot_on_error
-    def check_nodes_disks(self):
+    def check_nodes_disks(self, cluster):
         """Verify nailgun notifications for discovered nodes
 
         Scenario:
@@ -588,24 +591,6 @@ class NodeDiskSizes(TestBasic):
             6. Verify hard drive sizes for deployed nodes
 
         """
-
-        self.env.revert_snapshot("ready_with_3_slaves")
-
-        cluster_id = self.fuel_web.create_cluster(
-            name=self.__class__.__name__,
-            mode=DEPLOYMENT_MODE_SIMPLE
-        )
-        self.fuel_web.update_nodes(
-            cluster_id,
-            {
-                'slave-01': ['controller'],
-                'slave-02': ['compute'],
-                'slave-03': ['cinder']
-            }
-        )
-        self.fuel_web.deploy_cluster_wait(cluster_id)
-        self.fuel_web.assert_cluster_ready(
-            'slave-01', smiles_count=6, networks_count=1, timeout=300)
 
         self.fuel_web.run_ostf(cluster_id=cluster_id)
 
@@ -651,6 +636,7 @@ class NodeDiskSizes(TestBasic):
 class MultinicBootstrap(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_release],
           groups=["multinic_bootstrap_booting"])
+    @revert_snapshot("ready")
     @log_snapshot_on_error
     def multinic_bootstrap_booting(self):
         """Verify slaves booting with blocked mac address
@@ -662,8 +648,6 @@ class MultinicBootstrap(TestBasic):
             4. Verify slave mac addresses is equal to unblocked
 
         """
-        self.env.revert_snapshot("ready")
-
         slave = self.env.nodes().slaves[0]
         mac_addresses = [interface.mac_address for interface in
                          slave.interfaces.filter(network__name='internal')]
@@ -698,7 +682,6 @@ class DeleteEnvironment(TestBasic):
             3. Verify node returns to unallocated pull
 
         """
-
 
         cluster_id = self.fuel_web.get_last_created_cluster()
         cluster = cert_script.fuel_rest_api.reflect_cluster(
@@ -756,7 +739,7 @@ class UntaggedNetworksNegative(TestBasic):
         self.fuel_web.assert_task_failed(task)
 
 
-@test(groups=["known_issues"])
+@test(groups=["known_issues", "gleb_test"])
 class BackupRestoreSimple(TestBasic):
     @test(depends_on=[SimpleFlat.deploy_simple_flat],
           groups=["simple_backup_restore"])
