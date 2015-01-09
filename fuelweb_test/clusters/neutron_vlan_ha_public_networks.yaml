@@ -7,21 +7,21 @@ nodes:
       roles:
         - "controller"
 
-#    node2:
-#      roles:
-#        - "controller"
-#
-#    node3:
-#      roles:
-#        - "controller"
-#
-#    node4:
-#      roles:
-#        - "compute"
+    node2:
+      roles:
+        - "controller"
 
-#    node5:
-#      roles:
-#        - "compute"
+    node3:
+      roles:
+        - "controller"
+
+    node4:
+      roles:
+        - "compute"
+
+    node5:
+      roles:
+        - "compute"
 
 timeout: 3600
 settings:
