@@ -27,6 +27,7 @@ from fuelweb_test.tests.base_test_case import bootstrap_nodes
 from fuelweb_test.tests.base_test_case import cluster_template
 from certification_script import cert_script
 
+
 @test(groups=["thread_1", "neutron", "bvt_1"])
 class NeutronGre(TestBasic):
 
@@ -52,8 +53,9 @@ class NeutronGre(TestBasic):
         cluster = self.fuel_web.client.get_cluster(cluster_obj.id)
         assert_equal(str(cluster['net_provider']), 'neutron')
         # assert_equal(str(cluster['net_segment_type']), segment_type)
+        controller = cluster.nodes.controller[0]
         self.fuel_web.check_fixed_network_cidr(
-            cluster_obj.id, self.env.get_ssh_to_remote_by_name('slave-01'))
+            cluster_obj.id, self.env.get_ssh_to_remote(controller.get_ip()))
 
         self.fuel_web.verify_network(cluster_obj.id)
         self.fuel_web.security.verify_firewall(cluster_obj.id)
@@ -95,9 +97,10 @@ class NeutronVlan(TestBasic):
         self.fuel_web.verify_network(cluster_obj.id)
 
         self.fuel_web.run_ostf(
-            cluster_id=cluster_obj.id)        
+            cluster_id=cluster_obj.id)
 
-@test(groups=["thread_4", "neutron", "ha", "ha_neutron", "gleb"])
+
+@test(groups=["thread_4", "neutron", "ha", "ha_neutron", "rest"])
 class NeutronGreHa(TestBasic):
 
     @test(depends_on=[SetupEnvironment.prepare_slaves_5],
@@ -133,7 +136,7 @@ class NeutronGreHa(TestBasic):
             self.env.make_snapshot("deploy_neutron_gre_ha")
 
 
-@test(groups=["thread_6", "neutron", "ha", "ha_neutron", "gleb3"])
+@test(groups=["thread_6", "neutron", "ha", "ha_neutron", "rest"])
 class NeutronGreHaPublicNetwork(TestBasic):
 
     @test(depends_on=[SetupEnvironment.prepare_slaves_5],
@@ -172,7 +175,8 @@ class NeutronGreHaPublicNetwork(TestBasic):
             self.env.make_snapshot("deploy_neutron_gre_ha_public_network")
 
 
-@test(groups=["thread_3", "neutron", "ha", "ha_neutron", "bvt_1", "neutron_vlan_ha"])
+@test(groups=["thread_3", "neutron", "ha", "ha_neutron", "bvt_1",
+              "neutron_vlan_ha"])
 class NeutronVlanHa(TestBasic):
 
     @test(depends_on=[SetupEnvironment.prepare_slaves_5],
@@ -195,15 +199,17 @@ class NeutronVlanHa(TestBasic):
         Snapshot deploy_neutron_vlan_ha
 
         """
-        self.fuel_web.update_internal_network(cluster_obj.id, '192.168.196.0/22',
-                                          '192.168.196.1')
+        self.fuel_web.update_internal_network(cluster_obj.id,
+                                              '192.168.196.0/22',
+                                              '192.168.196.1')
         self.fuel_web.deploy_cluster_wait(cluster_obj.id)
 
         cluster = self.fuel_web.client.get_cluster(cluster_obj.id)
         assert_equal(str(cluster['net_provider']), 'neutron')
         # assert_equal(str(cluster['net_segment_type']), segment_type)
+        controller = cluster.nodes.controller[0]
         self.fuel_web.check_fixed_network_cidr(
-            cluster_id, self.env.get_ssh_to_remote_by_name('slave-01'))
+            cluster_id, self.env.get_ssh_to_remote(controller.get_ip()))
 
         self.fuel_web.verify_network(cluster_obj.id)
 
@@ -214,7 +220,8 @@ class NeutronVlanHa(TestBasic):
             self.env.make_snapshot("deploy_neutron_vlan_ha")
 
 
-@test(groups=["thread_6", "neutron", "ha", "ha_neutron", "gleb"])
+@test(groups=["thread_6", "neutron", "ha", "ha_neutron",
+              "NeutronVlanHaPublicNetwork"])
 class NeutronVlanHaPublicNetwork(TestBasic):
 
     @test(depends_on=[SetupEnvironment.prepare_slaves_5],
@@ -244,8 +251,10 @@ class NeutronVlanHaPublicNetwork(TestBasic):
         cluster = self.fuel_web.client.get_cluster(cluster_obj.id)
         assert_equal(str(cluster['net_provider']), 'neutron')
         # assert_equal(str(cluster['net_segment_type']), segment_type)
+        controller = cluster.nodes["controller"][0]
+
         self.fuel_web.check_fixed_network_cidr(
-            cluster_obj.id, self.env.get_ssh_to_remote_by_name('slave-01'))
+            cluster_obj.id, self.env.get_ssh_to_remote(controller.get_ip()))
 
         self.fuel_web.verify_network(cluster_obj.id)
 

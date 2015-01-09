@@ -21,6 +21,6 @@ network_configuration:
   networks:
     public:
       ip_ranges:
-        - [172.18.202.2, 172.18.202.15]
+        - [172.18.202.66 - 172.18.202.95]
       cidr: 172.18.202.0/26
-      gateway: 172.18.202.1
+      gateway: 172.18.202.64/26

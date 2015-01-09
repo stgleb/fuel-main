@@ -1,4 +1,6 @@
 name: flat
+deployment_mode: "multinode"
+release: 1
 
 nodes:
     node1:

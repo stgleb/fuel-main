@@ -40,3 +40,8 @@ network_configuration:
     internal_gateway : 192.168.196.1
     floating_ranges:
       - [172.18.202.16, 172.18.202.21]
+  networking_parameters:
+    internal_cidr: 192.168.196.0/22
+    internal_gateway : 192.168.196.1
+    floating_ranges:
+      - [172.18.202.16, 172.18.202.21]
