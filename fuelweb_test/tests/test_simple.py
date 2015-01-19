@@ -486,7 +486,7 @@ class SimpleCinder(TestBasic):
 @test(groups=["thread_1", "gleb4"])
 class NodeMultipleInterfaces(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
-          groups=["deploy_node_multiple_interfaces"])
+          groups=["deploy_node_multiple_interfaces", "certification"])
     @log_snapshot_on_error
     @revert_snapshot("ready_with_3_slaves")
     @cluster_template("deploy_node_multiple_interfaces")
@@ -685,7 +685,7 @@ class DeleteEnvironment(TestBasic):
         )
 
 
-@test(groups=["thread_1", "untagged_networks_negative"])
+@test(groups=["thread_1", "untagged_networks_negative", "certification"])
 class UntaggedNetworksNegative(TestBasic):
     @test(
         depends_on=[SetupEnvironment.prepare_slaves_3],
