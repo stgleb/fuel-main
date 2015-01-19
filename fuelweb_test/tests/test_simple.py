@@ -68,7 +68,7 @@ class OneNodeDeploy(TestBasic):
 class SimpleFlat(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
           groups=["smoke", "deploy_simple_flat", "simple_nova_flat",
-                  "baremetal", "certification"])
+                  "baremetal"])
     @log_snapshot_on_error
     @revert_snapshot("ready_with_3_slaves")
     @cert_script.with_cluster("flat", release=1, tear_down=False)
@@ -110,7 +110,7 @@ class SimpleFlat(TestBasic):
         if settings.CREATE_ENV:
             self.env.make_snapshot("deploy_simple_flat", is_make=True)
 
-    @test(groups=["simple_flat_create_instance", "certification"])
+    @test(groups=["simple_flat_create_instance"])
     @log_snapshot_on_error
     def simple_flat_create_instance(self):
         """Create instance with file injection
@@ -151,7 +151,7 @@ class SimpleFlat(TestBasic):
         assert_true(res == 'Hello World', 'file content is {0}'.format(res))
 
     @test(depends_on=[],
-          groups=["simple_flat_node_deletion", "baremetal2", "certification"])
+          groups=["simple_flat_node_deletion", "baremetal2"])
     @revert_snapshot("ready_with_3_slaves")
     @log_snapshot_on_error
     def simple_flat_node_deletion(self):
@@ -225,7 +225,7 @@ class SimpleFlat(TestBasic):
                 ebtables.restore_first_vlan()
 
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
-          groups=["simple_flat_add_compute", "baremetal", "certification"])
+          groups=["simple_flat_add_compute", "baremetal"])
     @log_snapshot_on_error
     @cert_script.with_cluster("flat", release=1)
     def simple_flat_add_compute(self, cluster_obj):
@@ -323,7 +323,6 @@ class SimpleVlan(TestBasic):
             cluster_id, amount=8, network_size=32)
         self.fuel_web.deploy_cluster_wait(cluster_id)
         node = cluster.nodes.controller[0]
-        self.fuel_web.deploy_cluster_wait(cluster.id)
         self.fuel_web.assert_cluster_ready(
             node.name, smiles_count=6, networks_count=8, timeout=300)
 
@@ -487,7 +486,7 @@ class SimpleCinder(TestBasic):
 @test(groups=["thread_1", "gleb4"])
 class NodeMultipleInterfaces(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
-          groups=["deploy_node_multiple_interfaces", "certification"])
+          groups=["deploy_node_multiple_interfaces"])
     @log_snapshot_on_error
     @revert_snapshot("ready_with_3_slaves")
     @cluster_template("deploy_node_multiple_interfaces")
@@ -521,7 +520,7 @@ class NodeMultipleInterfaces(TestBasic):
 @test(groups=["thread_1"])
 class NodeDiskSizes(TestBasic):
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
-          groups=["check_nodes_notifications", "certification"])
+          groups=["check_nodes_notifications"])
     @revert_snapshot("ready_with_3_slaves")
     @log_snapshot_on_error
     def check_nodes_notifications(self):
@@ -559,7 +558,7 @@ class NodeDiskSizes(TestBasic):
                              NODE_VOLUME_SIZE * 1024 - 500, 'Disk size')
 
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
-          groups=["check_nodes_disks", "certification", "rem"])
+          groups=["check_nodes_disks", "rem"])
     @revert_snapshot("ready_with_3_slaves")
     @cluster_template("check_nodes_disks")
     @cert_script.with_cluster("check_nodes_disks", release=1)
@@ -686,7 +685,7 @@ class DeleteEnvironment(TestBasic):
         )
 
 
-@test(groups=["thread_1", "untagged_networks_negative", "certification"])
+@test(groups=["thread_1", "untagged_networks_negative"])
 class UntaggedNetworksNegative(TestBasic):
     @test(
         depends_on=[SetupEnvironment.prepare_slaves_3],
