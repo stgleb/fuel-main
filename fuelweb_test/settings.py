@@ -257,9 +257,10 @@ UPDATE_TIMEOUT = os.environ.get('UPDATE_TIMEOUT', 3600)
 ###############################
 
 CREATE_ENV = os.environ.get('CREATE_ENV', 'false') == 'true'
-CLUSTER_TEMPLATES_DIR = '/etc/fuel/tests/clusters'
-ADMIN_NODE_IP = '172.18.201.17'
-ADMIN_NODE_PASS = 'test37'
+CLUSTER_TEMPLATES_DIR = os.environ.get('CLUSTER_TEMPLATES_DIR',
+                                       '/etc/fuel/tests/clusters')
+ADMIN_NODE_IP = os.environ.get('ADMIN_NODE_IP', '127.0.0.1')
+ADMIN_NODE_PASS = os.environ.get('ADMIN_NODE_PASS', 'r00tme')
 KEYSTONE_AUTH_CREDS = {'username': 'admin',
                        'password': 'admin',
                        'tenant_name': 'admin'}

@@ -30,7 +30,7 @@ from certification_script import cert_script
 class NeutronGre(TestBasic):
 
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
-          groups=["deploy_neutron_gre", "simple_neutron_gre", "gleb"])
+          groups=["deploy_neutron_gre", "simple_neutron_gre", "certification"])
     @revert_snapshot("ready_with_3_slaves")
     @log_snapshot_on_error
     @cert_script.with_cluster("neutron_simple_gre", release=1)
@@ -69,7 +69,8 @@ class NeutronGre(TestBasic):
 class NeutronVlan(TestBasic):
 
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
-          groups=["deploy_neutron_vlan", "simple_neutron_vlan", "gleb"])
+          groups=["deploy_neutron_vlan", "simple_neutron_vlan",
+                  "certification"])
     @revert_snapshot("ready_with_3_slaves")
     @log_snapshot_on_error
     @cluster_template("neutron_vlan")

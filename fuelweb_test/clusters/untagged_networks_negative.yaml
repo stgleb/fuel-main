@@ -1,4 +1,4 @@
-name: deploy_node_multiple_interfaces
+name: untagged_networks_negative
 
 nodes:
     node1:
