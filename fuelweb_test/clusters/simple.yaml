@@ -1,4 +1,5 @@
-name: simple1
+name: simple
+deployment_mode: multinode
 
 nodes:
     node1:

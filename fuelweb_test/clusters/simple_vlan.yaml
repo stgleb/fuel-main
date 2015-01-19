@@ -1,4 +1,5 @@
 name: simple_vlan
+deployment_mode: "multinode"
 
 release: 1
 
