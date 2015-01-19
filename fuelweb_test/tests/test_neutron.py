@@ -17,8 +17,6 @@ from proboscis import test
 from fuelweb_test import settings
 
 from fuelweb_test.helpers.decorators import log_snapshot_on_error
-from fuelweb_test.settings import DEPLOYMENT_MODE_HA
-from fuelweb_test.settings import DEPLOYMENT_MODE_SIMPLE
 from fuelweb_test.tests.base_test_case import SetupEnvironment
 from fuelweb_test.tests.base_test_case import TestBasic
 
@@ -203,7 +201,7 @@ class NeutronVlanHa(TestBasic):
                                               '192.168.196.0/22',
                                               '192.168.196.1')
         self.fuel_web.deploy_cluster_wait(cluster_obj.id)
-
+        cluster_id = cluster_obj.id
         cluster = self.fuel_web.client.get_cluster(cluster_obj.id)
         assert_equal(str(cluster['net_provider']), 'neutron')
         # assert_equal(str(cluster['net_segment_type']), segment_type)

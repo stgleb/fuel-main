@@ -24,7 +24,6 @@ from devops.helpers.helpers import tcp_ping
 from fuelweb_test.helpers.decorators import log_snapshot_on_error
 from fuelweb_test.helpers.eb_tables import Ebtables
 from fuelweb_test.helpers import os_actions
-from fuelweb_test.settings import DEPLOYMENT_MODE_SIMPLE
 from fuelweb_test.settings import NODE_VOLUME_SIZE
 from fuelweb_test.tests.base_test_case import SetupEnvironment
 from fuelweb_test.tests.base_test_case import TestBasic
@@ -302,7 +301,7 @@ class SimpleVlan(TestBasic):
     @log_snapshot_on_error
     @cluster_template("simple_vlan")
     @cert_script.with_cluster("simple_vlan", release=1)
-    def deploy_simple_vlan(self):
+    def deploy_simple_vlan(self, cluster):
         """Deploy cluster in simple mode with nova-network VLAN Manager
 
         Scenario:
@@ -319,22 +318,19 @@ class SimpleVlan(TestBasic):
         Snapshot: deploy_simple_vlan
 
         """
-        cluster_id = self.fuel_web.get_last_created_cluster()
-        cluster = cert_script.fuel_rest_api.reflect_cluster(
-            self.conn, cluster_id)
-
+        cluster_id = cluster.id
         self.fuel_web.update_vlan_network_fixed(
             cluster_id, amount=8, network_size=32)
         self.fuel_web.deploy_cluster_wait(cluster_id)
         node = cluster.nodes.controller[0]
-        self.fuel_web.deploy_cluster_wait(cluster_obj.id)
+        self.fuel_web.deploy_cluster_wait(cluster.id)
         self.fuel_web.assert_cluster_ready(
             node.name, smiles_count=6, networks_count=8, timeout=300)
 
-        self.fuel_web.verify_network(cluster_obj.id)
+        self.fuel_web.verify_network(cluster.id)
 
         self.fuel_web.run_ostf(
-            cluster_id=cluster_obj.id)
+            cluster_id=cluster.id)
 
         if settings.CREATE_ENV:
             self.env.make_snapshot("deploy_simple_vlan", is_make=True)
@@ -347,7 +343,7 @@ class MultiroleControllerCinder(TestBasic):
     @log_snapshot_on_error
     @cluster_template("multirolecontroller")
     @cert_script.with_cluster("multirolecontroller", release=1)
-    def deploy_multirole_controller_cinder(self, cluster_templ):
+    def deploy_multirole_controller_cinder(self, cluster):
         """Deploy cluster in simple mode with multi-role controller and cinder
 
         Scenario:
@@ -361,10 +357,6 @@ class MultiroleControllerCinder(TestBasic):
         Snapshot: deploy_multirole_controller_cinder
 
         """
-        if not cluster_templ.get('release'):
-            cluster_templ['release'] = 1
-        cluster_templ['deployment_mode'] = DEPLOYMENT_MODE_SIMPLE
-
         self.fuel_web.verify_network(cluster.id)
         self.fuel_web.run_ostf(
             cluster_id=cluster.id)
@@ -394,10 +386,6 @@ class MultiroleComputeCinder(TestBasic):
         Snapshot: deploy_multirole_compute_cinder
 
         """
-        if not cluster_templ.get('release'):
-            cluster_templ['release'] = 1
-        cluster_templ['deployment_mode'] = DEPLOYMENT_MODE_SIMPLE
-
         self.fuel_web.verify_network(cluster.id)
         self.fuel_web.run_ostf(
             cluster_id=cluster.id)
@@ -429,11 +417,6 @@ class FloatingIPs(TestBasic):
         Snapshot: deploy_floating_ips
 
         """
-        if settings.CREATE_ENV:
-            self.env.revert_snapshot("ready_with_3_slaves")
-        if not cluster_templ.get('release'):
-            cluster_templ['release'] = 1
-
         cluster_id = cluster.id
         networking_parameters = {
             "floating_ranges": self.fuel_web.get_floating_ranges()[0]}
@@ -479,10 +462,6 @@ class SimpleCinder(TestBasic):
         Snapshot: deploy_simple_cinder
 
         """
-        if not cluster_templ.get('release'):
-            cluster_templ['release'] = 1
-        cluster_templ['deployment_mode'] = DEPLOYMENT_MODE_SIMPLE
-
         self.fuel_web.verify_network(cluster.id)
 
         node = cluster.nodes.controller[0]
@@ -597,7 +576,7 @@ class NodeDiskSizes(TestBasic):
             6. Verify hard drive sizes for deployed nodes
 
         """
-
+        cluster_id = cluster.id
         self.fuel_web.run_ostf(cluster_id=cluster_id)
         nodes = cluster.nodes
 
@@ -605,12 +584,6 @@ class NodeDiskSizes(TestBasic):
 
         for node in nodes:
             nodes_dict[node.name] = node.roles
-
-        # nodes_dict = {
-        #     'slave-01': ['controller'],
-        #     'slave-02': ['compute'],
-        #     'slave-03': ['cinder']
-        # }
 
         # assert node disks after deployment
         for node_name in nodes_dict:
@@ -738,7 +711,8 @@ class UntaggedNetworksNegative(TestBasic):
         vlan_turn_off = {'vlan_start': None}
         nets = self.fuel_web.client.get_networks(cluster_obj.id)['networks']
         # select networks that will be untagged:
-        [net.update(vlan_turn_off) for net in nets]
+        for net in nets:
+            net.update(vlan_turn_off)
 
         # stop using VLANs:
         self.fuel_web.client.update_network(cluster_obj.id, networks=nets)
