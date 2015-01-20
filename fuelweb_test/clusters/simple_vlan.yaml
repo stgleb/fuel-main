@@ -22,3 +22,8 @@ network_configuration:
         - [172.18.202.2, 172.18.202.15]
       cidr: 172.18.202.0/26
       gateway: 172.18.202.1
+  networking_parameters:
+   fixed_networks_cidr: '10.1.0.0/24'
+   net_manager: VlanManager
+   fixed_network_size : 32
+   fixed_networks_amount : 8

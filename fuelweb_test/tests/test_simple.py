@@ -558,7 +558,7 @@ class NodeDiskSizes(TestBasic):
                              NODE_VOLUME_SIZE * 1024 - 500, 'Disk size')
 
     @test(depends_on=[SetupEnvironment.prepare_slaves_3],
-          groups=["check_nodes_disks", "rem"])
+          groups=["check_nodes_disks"])
     @revert_snapshot("ready_with_3_slaves")
     @cluster_template("check_nodes_disks")
     @cert_script.with_cluster("check_nodes_disks", release=1)
@@ -685,11 +685,11 @@ class DeleteEnvironment(TestBasic):
         )
 
 
-@test(groups=["thread_1", "untagged_networks_negative", "certification"])
+@test(groups=["thread_1", "untagged_networks_negative"])
 class UntaggedNetworksNegative(TestBasic):
     @test(
         depends_on=[SetupEnvironment.prepare_slaves_3],
-        groups=["untagged_networks_negative"],
+        groups=["untagged_networks_negative", "certification", "rem"],
         enabled=False)
     @log_snapshot_on_error
     @cluster_template("untagged_networks_negative")

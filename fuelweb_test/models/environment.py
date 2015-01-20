@@ -72,6 +72,8 @@ class BMEnvModel(SSH):
         super(BMEnvModel, self).__init__()
         self.admin_node_ip = settings.ADMIN_NODE_IP
         self.fuel_web = FuelWebClient(self.admin_node_ip, self)
+        self._virtual_environment = None
+        self.manager = Manager()
 
     @logwrap
     def get_ebtables_by_nodes(self, cluster_id, nodes):
@@ -98,6 +100,60 @@ class BMEnvModel(SSH):
                             format(cfg_file=settings.FUEL_SETTINGS_YAML,
                                    error=result['stderr']))
         return fuel_settings
+
+    @logwrap
+    def get_ebtables(self, cluster_id, devops_nodes):
+        return Ebtables(self.get_target_devs(devops_nodes),
+                        self.fuel_web.client.get_cluster_vlans(cluster_id))
+
+    def nodes(self):
+        return Nodes(self.get_virtual_environment(), self.node_roles)
+
+    def get_virtual_environment(self):
+        """Returns virtual environment
+        :rtype : devops.models.Environment
+        """
+        if self._virtual_environment is None:
+            self._virtual_environment = self._get_or_create()
+        return self._virtual_environment
+
+    def _get_or_create(self):
+        try:
+            return self.manager.environment_get(self.env_name)
+        except Exception:
+            self._virtual_environment = self.describe_environment()
+            self._virtual_environment.define()
+            return self._virtual_environment
+
+    def describe_environment(self):
+        """Environment
+        :rtype : Environment
+        """
+        environment = self.manager.environment_create(self.env_name)
+        networks = []
+        interfaces = settings.INTERFACE_ORDER
+        if settings.BONDING:
+            interfaces = settings.BONDING_INTERFACES.keys()
+
+        for name in interfaces:
+            networks.append(self.create_networks(name, environment))
+        for name in self.node_roles.admin_names:
+            self.describe_admin_node(name, networks)
+        for name in self.node_roles.other_names:
+            self.describe_empty_node(name, networks)
+        return environment
+
+    @property
+    def env_name(self):
+        return settings.ENV_NAME
+
+    @property
+    def node_roles(self):
+        return NodeRoles(
+            admin_names=['admin'],
+            other_names=['slave-%02d' % x for x in range(1, int(
+                settings.NODES_COUNT))]
+        )
 
 
 class EnvironmentModel(SSH):
